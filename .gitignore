@@ -1,0 +1,14 @@
+.venv/
+node_modules/
+dist/
+android/.gradle/
+android/build/
+android/app/build/
+data/
+.env
+*.apk
+__pycache__/
+.pytest_cache/
+output/
+tmp/
+
