@@ -1,0 +1,12 @@
+[project]
+name = "paperlens-tooling"
+version = "0.1.0"
+description = "Development-only font tooling for PaperLens"
+requires-python = ">=3.11"
+dependencies = []
+
+[dependency-groups]
+dev = ["fonttools>=4.66,<5"]
+
+[tool.uv]
+package = false

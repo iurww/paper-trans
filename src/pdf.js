@@ -2,6 +2,7 @@ import * as pdfjs from 'pdfjs-dist';
 import workerUrl from 'pdfjs-dist/build/pdf.worker.min.mjs?url';
 import { PDFDocument, rgb } from 'pdf-lib';
 import fontkit from '@pdf-lib/fontkit';
+import { groupParagraphs, layoutParagraph } from './paragraphs.js';
 
 pdfjs.GlobalWorkerOptions.workerSrc = workerUrl;
 
@@ -21,7 +22,7 @@ function bounds(items, height) {
 
 function classify(lines, width, state, pageNumber) {
   let tableUntil = -1;
-  return lines.map((line, index) => {
+  return lines.map(line => {
     const text = line.source;
     if (heading.test(text)) state.references = true;
     if (/^table\s*[\dIVX]+[\s.:：-]/i.test(text)) tableUntil = line.rect[3] + 170;
@@ -59,18 +60,22 @@ export async function readPdf(bytes) {
       const groups = [[]];
       for (const item of line.items) {
         const last = groups.at(-1).at(-1);
-        if (last && item.transform[4] - (last.transform[4] + last.width) > Math.max(22, item.height * 2.4)) groups.push([]);
+        const gap = last && item.transform[4] - (last.transform[4] + last.width);
+        const columnBreak = last && line.baseline < viewport.height - 250 &&
+          last.transform[4] + last.width < viewport.width * .5 && item.transform[4] > viewport.width * .5 && gap > 7;
+        if (last && (gap > Math.max(22, item.height * 2.4) || columnBreak)) groups.push([]);
         groups.at(-1).push(item);
       }
       return groups.map(items => ({ baseline: line.baseline, items }));
     });
     splitLines.sort((a, b) => b.baseline - a.baseline || a.items[0].transform[4] - b.items[0].transform[4]);
-    const normalized = splitLines.map((line, index) => {
+    const normalized = splitLines.map(line => {
       const source = line.items.map(item => item.str).join(' ').replace(/\s+/g, ' ').trim();
-      return { id: `p${number}l${index}`, source, translation: '', rect: bounds(line.items, viewport.height), fontSize: Math.max(6, Math.min(16, Math.max(...line.items.map(item => item.height)))), items: line.items };
+      return { source, rect: bounds(line.items, viewport.height), fontSize: Math.max(6, Math.min(16, Math.max(...line.items.map(item => item.height)))), items: line.items };
     });
+    const classified = classify(normalized, viewport.width, classification, number).map(({ items: _items, ...line }) => line);
     pages.push({ number, width: viewport.width, height: viewport.height,
-      lines: classify(normalized, viewport.width, classification, number).map(({ items: _items, ...line }) => line) });
+      blocks: groupParagraphs(classified, viewport.width, number) });
   }
   await task.destroy();
   return pages;
@@ -91,19 +96,6 @@ export async function renderPage(pdf, number, canvas, cssWidth) {
 
 export const openPdf = bytes => pdfjs.getDocument({ data: bytes.slice() }).promise;
 
-function wrap(text, font, size, width) {
-  const lines = [];
-  let line = '';
-  for (const char of text) {
-    if (char === '\n' || font.widthOfTextAtSize(line + char, size) > width && line) {
-      lines.push(line);
-      line = char === '\n' ? '' : char;
-    } else line += char;
-  }
-  if (line) lines.push(line);
-  return lines;
-}
-
 export async function exportPdf(sourceBytes, pages, fontData) {
   const pdf = await PDFDocument.load(sourceBytes);
   pdf.registerFontkit(fontkit);
@@ -113,23 +105,18 @@ export async function exportPdf(sourceBytes, pages, fontData) {
   const warnings = [];
   for (const data of pages) {
     const page = pdf.getPage(data.number - 1);
-    for (const line of data.lines.filter(item => item.translate && item.translation)) {
-      const [x0, y0, x1, y1] = line.rect;
-      const width = x1 - x0;
-      const height = y1 - y0;
-      let size = Math.min(line.fontSize, 13);
-      let rows = [];
-      while (size >= 4.5) {
-        rows = wrap(line.translation, font, size, width);
-        if (rows.length * size * 1.12 <= height + size * .35) break;
-        size -= .3;
-      }
-      if (rows.length * size * 1.12 > height + size * .35) warnings.push(`第 ${data.number} 页 ${line.id} 译文可能超出原行`);
-      page.drawRectangle({ x: x0, y: page.getHeight() - y1, width, height, color: rgb(1, 1, 1) });
-      rows.forEach((row, index) => {
-        if (index * size * 1.12 >= height) return;
-        page.drawText(row, { x: x0, y: page.getHeight() - y0 - size * (index + .9), size, font, color: rgb(.12, .16, .18) });
+    for (const block of data.blocks) {
+      if (!block.sentences.some(sentence => sentence.translation)) continue;
+      const [x0, y0, x1, y1] = block.rect;
+      const layout = layoutParagraph(block, font);
+      if (layout.overflow) warnings.push(`第 ${data.number} 页 ${block.id} 译文超出原段落高度`);
+      page.drawRectangle({ x: x0, y: page.getHeight() - y1, width: x1 - x0, height: y1 - y0, color: rgb(1, 1, 1) });
+      layout.rows.forEach((row, index) => {
+        if (!row.text) return;
+        page.drawText(row.text, { x: x0, y: page.getHeight() - y0 - layout.size * (.92 + index * 1.16),
+          size: layout.size, font, color: rgb(.12, .16, .18) });
       });
+      block.sentences.forEach((sentence, index) => { sentence.translation_rects = layout.rects[index]; });
     }
   }
   const bytes = await pdf.save({ useObjectStreams: true, objectsPerTick: 100 });

@@ -1,0 +1,21 @@
+.task-sidebar{width:246px;min-width:246px;height:100vh;flex:none;display:flex;flex-direction:column;padding:26px 14px 18px;background:#f0f3ef;border-right:1px solid #e3e9e4;overflow:hidden}
+.app-layout.sidebar-collapsed>.task-sidebar{width:0;min-width:0;padding:0;border:0}
+.brand{display:flex;align-items:center;gap:10px;padding:0 14px 30px;font-size:19px;font-weight:700;letter-spacing:-.8px;white-space:nowrap}
+.brand small{display:block;color:#83928d;font-size:10px;letter-spacing:1.2px;font-weight:600;margin-top:2px}
+.brand-mark{width:32px;height:32px;border-radius:9px;color:#fff;background:#1b796a;display:grid;place-items:center;box-shadow:0 4px 12px #1b796a25}
+.new-task{margin:0 8px 28px;flex:none}
+.sidebar-heading{padding:0 14px;color:#65756e;font-size:11px;font-weight:700;letter-spacing:1px;display:flex;justify-content:space-between;margin-bottom:10px}
+.sidebar-heading span{font-size:11px;background:#e4eae5;padding:2px 6px;border-radius:4px}
+.task-list{overflow-y:auto;min-height:0;flex:1}
+.task-item{width:100%;border:0;background:transparent;display:flex;text-align:left;align-items:center;gap:10px;padding:10px;border-radius:9px;color:#33443c;margin-bottom:3px}
+.task-item:hover{background:#e8eee9}.task-item.selected{background:#dfece5;color:#12624f}
+.task-icon{width:31px;height:33px;flex:none;border-radius:6px;background:#fff;display:grid;place-items:center;color:#599181}
+.task-copy{min-width:0;flex:1}.task-copy strong{display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:12px;font-weight:600}
+.task-copy small{display:block;font-size:10px;color:#8b9a91;margin-top:4px}
+.task-complete{width:6px;height:6px;flex:none;border-radius:50%;background:#4cb69c}
+.sidebar-actions{border-top:1px solid #dfe6df;padding:12px 6px 0;display:flex;flex-direction:column;align-items:stretch;gap:1px}
+.sidebar-actions .mantine-Button-root{justify-content:flex-start;height:32px;padding:0 4px;font-size:12px}
+.sidebar-actions p{padding:9px 4px 0;font-size:10px}
+.task-sidebar-mobile{height:100%;width:100%;min-width:0;border:0}
+@media(max-width:1000px){.task-sidebar:not(.task-sidebar-mobile){width:205px;min-width:205px}.app-layout.sidebar-collapsed>.task-sidebar{width:0;min-width:0}}
+@media(max-width:760px){.task-sidebar:not(.task-sidebar-mobile){display:none}.task-sidebar-mobile{padding:12px 14px 18px}.task-sidebar-mobile .brand{display:none}}
