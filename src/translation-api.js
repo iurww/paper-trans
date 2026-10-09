@@ -4,12 +4,12 @@ export class TranslationConfigurationError extends Error {}
 const pause = milliseconds => new Promise(resolve => setTimeout(resolve, milliseconds));
 const retryableStatus = status => status === 408 || status === 409 || status === 425 || status === 429 || status >= 500;
 
-async function request(messages, settings, fetchImpl, sleep) {
+export async function request(messages, settings, fetchImpl = fetch, sleep = pause) {
   let lastError;
   for (let attempt = 0; attempt < 3; attempt++) {
     try {
       const controller = new AbortController();
-      const timeout = setTimeout(() => controller.abort(), 90000);
+      const timeout = setTimeout(() => controller.abort(), settings.timeoutMs || 90000);
       let response;
       try {
         response = await fetchImpl(settings.endpoint, {
@@ -20,6 +20,8 @@ async function request(messages, settings, fetchImpl, sleep) {
             model: settings.model,
             temperature: 0,
             response_format: { type: 'json_object' },
+            ...(settings.maxTokens ? { max_tokens: settings.maxTokens } : {}),
+            ...(settings.thinking ? { thinking: settings.thinking } : {}),
             messages,
           }),
         });
@@ -41,7 +43,7 @@ async function request(messages, settings, fetchImpl, sleep) {
   throw lastError;
 }
 
-function parseContent(content) {
+export function parseContent(content) {
   if (typeof content !== 'string') return null;
   const trimmed = content.trim().replace(/^```(?:json)?\s*/i, '').replace(/\s*```$/, '');
   try { return JSON.parse(trimmed); }

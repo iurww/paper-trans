@@ -5,7 +5,7 @@ function collectZones(page, version) {
   if (page.blocks) return page.blocks.flatMap(block => block.sentences.flatMap(sentence =>
     (version === 'original' ? sentence.source_rects : sentence.translation_rects || [])
       .map(rect => ({ rect, sentence }))));
-  return page.lines.filter(line => line.translate && line.translation)
+  return (page.lines || []).filter(line => line.translate && line.translation)
     .map(line => ({ rect: line.rect, sentence: line }));
 }
 

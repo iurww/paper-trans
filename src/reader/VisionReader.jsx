@@ -1,0 +1,107 @@
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { ActionIcon, Alert, Button, Loader, SegmentedControl } from '@mantine/core';
+import { useMediaQuery } from '@mantine/hooks';
+import { Download, FileText, PanelLeftClose, PanelLeftOpen, RotateCcw, ZoomIn, ZoomOut } from 'lucide-react';
+import PdfPane from './PdfPane.jsx';
+import LatexText from './LatexText.jsx';
+import { displayParagraphText } from './visual-format.js';
+import { getPdfPageInfo, runVisualTranslation } from '../vision-translator.js';
+import { visibleVisualPages } from '../visual-content.js';
+
+const ignoreSentence = () => {};
+
+function VisualParagraph({ paragraph }) {
+  const { original, chinese } = displayParagraphText(paragraph);
+  return <article className={`visual-paragraph visual-${paragraph.kind}`}>
+    <div className="visual-original"><LatexText text={original} standaloneEquation={paragraph.kind === 'equation'} /></div>
+    {chinese && <div className="visual-chinese"><LatexText text={chinese} /></div>}
+  </article>;
+}
+
+export default function VisionReader({ document, settings, sidebarCollapsed, onToggleSidebar, onOpenTasks, onModeChange }) {
+  const mobile = useMediaQuery('(max-width: 760px)');
+  const [pages, setPages] = useState([]);
+  const [pageError, setPageError] = useState('');
+  const [currentPage, setCurrentPage] = useState(1);
+  const [scale, setScale] = useState(1);
+  const [mobileView, setMobileView] = useState('translated');
+  const originalRef = useRef(null);
+  const translatedRef = useRef(null);
+  const originalBlob = useRef(document.original).current;
+  const displayPages = useMemo(() => visibleVisualPages(document.visualPages || []), [document.visualPages]);
+
+  useEffect(() => {
+    let active = true;
+    getPdfPageInfo(originalBlob).then(result => { if (active) setPages(result); })
+      .catch(error => { if (active) setPageError(error.message); });
+    return () => { active = false; };
+  }, [document.id]);
+
+  useEffect(() => { void runVisualTranslation(document.id, settings?.visionKey, { retry: Boolean(settings?.visionKey) }); }, [document.id, settings?.visionKey]);
+
+  const updatePage = useCallback((_version, root) => {
+    const first = [...root.querySelectorAll('.pdf-page, .visual-page')].find(page => page.getBoundingClientRect().bottom > root.getBoundingClientRect().top + 40);
+    if (first) setCurrentPage(Number(first.dataset.page));
+  }, []);
+
+  const downloadJson = () => {
+    const payload = { pages: (document.visualPages || []).filter(Boolean).map(page => ({ page: page.number, paragraphs: page.paragraphs })) };
+    const url = URL.createObjectURL(new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' }));
+    const link = window.document.createElement('a');
+    link.href = url;
+    link.download = `${document.filename.replace(/\.pdf$/i, '')}-visual-translation.json`;
+    link.click();
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
+  };
+
+  return <div className="reader vision-reader">
+    <header className="reader-toolbar">
+      <ActionIcon variant="subtle" color="teal" aria-label={mobile ? '打开任务列表' : sidebarCollapsed ? '展开任务列表' : '折叠任务列表'}
+        onClick={mobile ? onOpenTasks : onToggleSidebar}>
+        {mobile ? <FileText size={18} /> : sidebarCollapsed ? <PanelLeftOpen size={18} /> : <PanelLeftClose size={18} />}
+      </ActionIcon>
+      <SegmentedControl className="reader-mode-switch" size="xs" color="teal" value="visual" onChange={onModeChange}
+        data={[{ label: '常规', value: 'standard' }, { label: '纯视觉识别', value: 'visual' }]} />
+      <div className="page-count" aria-label="当前页数">{currentPage} <span>/ {pages.length || '…'}</span></div>
+      <div className="zoom-controls">
+        {(document.visualPages || []).some(Boolean) && <ActionIcon variant="subtle" color="teal" aria-label="下载对照 JSON" title="下载对照 JSON" onClick={downloadJson}><Download size={18} /></ActionIcon>}
+        {document.visualPages?.[currentPage - 1] && <ActionIcon variant="subtle" color="teal" aria-label="重新识别当前页" title="重新识别当前页" disabled={!settings?.visionKey || document.visualStatus === 'working'}
+          onClick={() => runVisualTranslation(document.id, settings.visionKey, { retry: true, onlyPage: currentPage, redoPage: true })}><RotateCcw size={18} /></ActionIcon>}
+        <ActionIcon variant="subtle" color="teal" aria-label="缩小" onClick={() => setScale(value => Math.max(.75, value - .25))}><ZoomOut size={18} /></ActionIcon>
+        <ActionIcon variant="subtle" color="teal" aria-label="放大" onClick={() => setScale(value => Math.min(2.5, value + .25))}><ZoomIn size={18} /></ActionIcon>
+      </div>
+    </header>
+    <div className="reader-workspace">
+      {pageError && <Alert color="red">PDF 无法打开：{pageError}</Alert>}
+      {document.visualStatus === 'error' && <Alert color="red" className="vision-error">{document.visualError}<Button ml="sm" size="compact-sm" variant="white" onClick={() => runVisualTranslation(document.id, settings?.visionKey, { retry: true })}>重试未完成页</Button></Alert>}
+      <div className="mobile-view-switch"><SegmentedControl value={mobileView} onChange={setMobileView}
+        data={[{ label: 'PDF 原件', value: 'original' }, { label: '逐段对照', value: 'translated' }]} fullWidth size="xs" color="teal" /></div>
+      <div className={`vision-spread mobile-${mobileView}`}>
+        <PdfPane version="original" blob={originalBlob} pages={pages} scale={scale} scrollRef={originalRef}
+          onScroll={updatePage} onSentenceOpen={ignoreSentence} onSentenceHover={ignoreSentence} mobile={mobile} />
+        <div ref={translatedRef} className="visual-scroll" style={{ '--reading-scale': scale }} onScroll={event => updatePage('translated', event.currentTarget)}>
+          <div className="visual-progress">已完成 {(document.visualPages || []).filter(Boolean).length} / {pages.length || '…'} 页
+            {document.visualActivePage && document.visualPages?.[document.visualActivePage - 1] ? ` · 正在重新识别第 ${document.visualActivePage} 页` : ''}
+            {document.visualTokens?.total ? ` · ${document.visualTokens.total} token` : ''}</div>
+          {pages.map(page => {
+            const result = document.visualPages?.[page.number - 1];
+            const visibleParagraphs = displayPages[page.number - 1] || [];
+            return <section key={page.number} className="visual-page" data-page={page.number} aria-label={`第 ${page.number} 页译文`}>
+              {result && document.visualPageErrors?.[page.number] && document.visualStatus !== 'working' &&
+                <Alert color="red" mb="sm">重新识别失败：{document.visualPageErrors[page.number]}</Alert>}
+              {result ? visibleParagraphs.length ? visibleParagraphs.map((paragraph, index) =>
+                <VisualParagraph key={index} paragraph={paragraph} />) : <p className="visual-empty">此页无文字</p>
+                : <div className="visual-pending">{document.visualActivePage === page.number
+                  ? <><Loader size="xs" color="teal" /> 正在识别并翻译…</>
+                  : document.visualPageErrors?.[page.number]
+                    ? <>此页失败：{document.visualPageErrors[page.number]}
+                      {document.visualStatus !== 'working' && <Button size="compact-xs" variant="light" color="teal"
+                        onClick={() => runVisualTranslation(document.id, settings?.visionKey, { retry: true, onlyPage: page.number })}>重试本页</Button>}</>
+                    : document.visualStatus === 'error' ? '此页尚未完成' : '等待识别…'}</div>}
+            </section>;
+          })}
+        </div>
+      </div>
+    </div>
+  </div>;
+}

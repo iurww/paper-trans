@@ -1,4 +1,4 @@
-import { getDocument, listDocuments, putDocument } from './storage.js';
+import { getDocument, listDocuments, updateDocument } from './storage.js';
 import { exportPdf, readPdf } from './pdf.js';
 import { RetryableTranslationError, TranslationConfigurationError, translateBatch } from './translation-api.js';
 
@@ -12,9 +12,19 @@ export function subscribeChanges(listener) {
   return () => listeners.delete(listener);
 }
 
-async function save(record) {
-  await putDocument(record);
+export function notifyChange(record) {
   for (const listener of listeners) listener(record);
+}
+
+async function save(record) {
+  const saved = await updateDocument(record.id, current => {
+    const next = { ...record };
+    for (const key of ['visualPages', 'visualPageCount', 'visualPageErrors', 'visualActivePage', 'visualStatus', 'visualError', 'visualTokens', 'mode']) {
+      if (Object.hasOwn(current, key)) next[key] = current[key];
+    }
+    return next;
+  });
+  notifyChange(saved);
 }
 
 function batches(lines, limit = 800) {

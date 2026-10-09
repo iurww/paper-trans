@@ -5,6 +5,7 @@ const defaultSettings = {
   endpoint: 'https://api.deepseek.com/chat/completions',
   model: 'deepseek-chat',
   key: '',
+  visionKey: '',
 };
 
 export function loadSettings() {

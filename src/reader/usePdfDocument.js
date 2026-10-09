@@ -1,6 +1,10 @@
 import { useEffect, useState } from 'react';
 import { openPdf } from '../pdf.js';
 
+function releasePdf(pdf) {
+  void pdf.loadingTask.destroy().catch(() => {});
+}
+
 export function usePdfDocument(blob) {
   const [state, setState] = useState({ pdf: null, error: null });
   useEffect(() => {
@@ -11,10 +15,10 @@ export function usePdfDocument(blob) {
       try {
         const pdf = await openPdf(new Uint8Array(await blob.arrayBuffer()));
         if (active) { loaded = pdf; setState({ pdf, error: null }); }
-        else pdf.destroy();
+        else releasePdf(pdf);
       } catch (error) { if (active) setState({ pdf: null, error }); }
     })();
-    return () => { active = false; loaded?.destroy(); };
+    return () => { active = false; if (loaded) releasePdf(loaded); };
   }, [blob]);
   return state;
 }

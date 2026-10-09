@@ -4,6 +4,7 @@
 .regular-toolbar{height:63px;flex:none;display:flex;align-items:center;gap:15px;padding:0 26px;background:#fff;border-bottom:1px solid #e9eeea}
 .breadcrumb{font-size:11px;font-weight:600;color:#7f8d86;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .breadcrumb i{font-style:normal;color:#bac5bf;margin:0 9px}
+.regular-mode-switch{margin-left:auto}
 .mobile-brand,.mobile-actions{display:none}
 .welcome{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;padding:30px 30px 50px;background:radial-gradient(circle at 51% 25%,#ecf5ee 0,transparent 31%),#fbfcf9}
 .welcome-deco{width:126px;height:138px;position:relative;margin-bottom:34px}
@@ -23,4 +24,4 @@
 .progress-icon{width:54px;height:54px;border-radius:16px;background:#e5f2e9;color:#218463;display:grid;place-items:center;margin-bottom:24px}
 .progress-card h2{font-size:24px;letter-spacing:-1px;margin:10px 0}
 .progress-bottom{display:flex;justify-content:space-between;color:#618276;font-size:11px;margin-top:8px}
-@media(max-width:760px){.app-layout{display:block}.app-main{min-height:100vh}.app-layout.is-reading .app-main{height:100dvh;min-height:0}.regular-toolbar{height:57px;padding:0 15px;justify-content:space-between}.desktop-sidebar-toggle,.breadcrumb{display:none}.mobile-brand{display:block;font-weight:700;color:#1b796a}.mobile-actions{display:flex;gap:5px}.welcome{min-height:calc(100vh - 57px);padding:25px 22px}.welcome-deco{transform:scale(.85);margin-bottom:9px}.welcome h1{font-size:31px}.welcome-features{margin-top:60px;gap:8px}.welcome-features strong{font-size:11px}.welcome-features small{font-size:9px;line-height:1.5}.progress-card{padding:28px}}
+@media(max-width:760px){.app-layout{display:block}.app-main{min-height:100vh}.app-layout.is-reading .app-main{height:100dvh;min-height:0}.regular-toolbar{height:57px;padding:0 15px;justify-content:space-between}.desktop-sidebar-toggle,.breadcrumb{display:none}.mobile-brand{display:block;font-weight:700;color:#1b796a}.mobile-actions{display:flex;gap:5px}.regular-mode-switch{margin-left:auto}.regular-mode-switch .mantine-SegmentedControl-label{font-size:11px;padding:5px 7px}.welcome{min-height:calc(100vh - 57px);padding:25px 22px}.welcome-deco{transform:scale(.85);margin-bottom:9px}.welcome h1{font-size:31px}.welcome-features{margin-top:60px;gap:8px}.welcome-features strong{font-size:11px}.welcome-features small{font-size:9px;line-height:1.5}.progress-card{padding:28px}}

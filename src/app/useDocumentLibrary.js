@@ -42,27 +42,30 @@ export function useDocumentLibrary(settings, onNeedSettings, onError) {
 
   useEffect(() => { if (settings.key) runQueue(settings); }, [settings]);
 
-  const upload = useCallback(async file => {
+  const upload = useCallback(async (file, mode = 'standard') => {
     if (!file || !/\.pdf$/i.test(file.name) || file.type && file.type !== 'application/pdf') {
-      onError('请选择 PDF 文件'); return;
+      onError('请选择 PDF 文件'); return false;
     }
-    if (file.size > 80 * 1024 * 1024) { onError('PDF 不能超过 80 MB'); return; }
+    if (file.size > 80 * 1024 * 1024) { onError('PDF 不能超过 80 MB'); return false; }
     try {
       const existing = await listDocuments();
-      if (existing.filter(item => !['done', 'error'].includes(item.status)).length >= MAX_PENDING) {
-        onError(`最多等待 ${MAX_PENDING} 篇论文，请稍后提交。`); return;
+      if (mode === 'standard' && existing.filter(item => !['done', 'error', 'visual'].includes(item.status)).length >= MAX_PENDING) {
+        onError(`最多等待 ${MAX_PENDING} 篇论文，请稍后提交。`); return false;
       }
       const record = {
         id: crypto.randomUUID(), filename: file.name, createdAt: Date.now(),
-        status: 'queued', progress: 0, tokens: { prompt: 0, completion: 0, total: 0 },
+        mode, status: mode === 'visual' ? 'visual' : 'queued', progress: 0, tokens: { prompt: 0, completion: 0, total: 0 },
         original: file, translated: null, pages: null, warnings: [], error: '',
       };
       await putDocument(record);
       setDocuments(previous => [record, ...previous]);
       setSelectedId(record.id);
-      if (settingsRef.current.key) runQueue(settingsRef.current);
+      if (mode === 'visual') {
+        if (!settingsRef.current.visionKey) onNeedSettings();
+      } else if (settingsRef.current.key) runQueue(settingsRef.current);
       else onNeedSettings();
-    } catch (error) { onError(`本地保存失败：${error.message}`); }
+      return true;
+    } catch (error) { onError(`本地保存失败：${error.message}`); return false; }
   }, [onError, onNeedSettings]);
 
   const retry = useCallback(async id => {

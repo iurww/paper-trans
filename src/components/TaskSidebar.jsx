@@ -4,15 +4,19 @@ import { Download, FileText, Plus, RotateCcw, Settings, BookOpen } from 'lucide-
 import { label, status, tokenCount } from '../app/format.js';
 
 const TaskItem = memo(function TaskItem({ document, selected, onSelect }) {
+  const visual = document.mode === 'visual';
+  const donePages = (document.visualPages || []).filter(Boolean).length;
+  const progress = visual ? Math.round(100 * donePages / (document.visualPageCount || 1)) : document.progress;
+  const tokens = visual ? document.visualTokens : document.tokens;
   return <button type="button" className={`task-item ${selected ? 'selected' : ''}`} onClick={() => onSelect(document.id)}>
     <span className="task-icon"><FileText size={17} /></span>
     <span className="task-copy">
       <strong title={document.filename}>{label(document)}</strong>
-      <small>{status(document)} · {document.progress}% · {tokenCount(document.tokens?.total)} token</small>
-      {selected && <small>输入 {tokenCount(document.tokens?.prompt)} · 输出 {tokenCount(document.tokens?.completion)}</small>}
-      {!['done', 'error'].includes(document.status) && <Progress value={document.progress} size={3} radius="xl" color="teal" mt={5} />}
+      <small>{status(document)} · {progress}% · {tokenCount(tokens?.total)} token</small>
+      {selected && <small>输入 {tokenCount(tokens?.prompt)} · 输出 {tokenCount(tokens?.completion)}</small>}
+      {(visual ? document.visualStatus === 'working' : !['done', 'error'].includes(document.status)) && <Progress value={progress} size={3} radius="xl" color="teal" mt={5} />}
     </span>
-    {document.status === 'done' && <span className="task-complete" />}
+    {(visual ? document.visualStatus === 'done' : document.status === 'done') && <span className="task-complete" />}
   </button>;
 });
 
@@ -27,7 +31,7 @@ export default function TaskSidebar({ documents, selected, onSelect, onNew, onSe
         : <Text size="xs" c="dimmed" px="md" py="sm">论文和翻译记录只保存在本机。</Text>}
     </div>
     <div className="sidebar-actions">
-      {selected?.status === 'done' && <>
+      {selected?.translated && <>
         {legacy && <Button variant="subtle" color="teal" leftSection={<RotateCcw size={16} />} onClick={onRetranslate} title="重新调用翻译 API，会产生新的 Token 用量">按句重译</Button>}
         <Button variant="subtle" color="teal" leftSection={<Download size={16} />} onClick={onDownload}>下载译文 PDF</Button>
       </>}

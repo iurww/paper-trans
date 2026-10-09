@@ -3,9 +3,14 @@ import { ActionIcon, Modal, SegmentedControl, Text } from '@mantine/core';
 import { useMediaQuery } from '@mantine/hooks';
 import { ArrowLeft, ArrowRight, FileText, PanelLeftClose, PanelLeftOpen, ZoomIn, ZoomOut } from 'lucide-react';
 import PdfPane from './PdfPane.jsx';
+import VisionReader from './VisionReader.jsx';
 import { useSynchronizedScroll } from './useSynchronizedScroll.js';
 
-export default memo(function Reader({ document, sidebarCollapsed, onToggleSidebar, onOpenTasks, overlayOpen }) {
+export default memo(function Reader(props) {
+  return props.mode === 'visual' ? <VisionReader {...props} /> : <StandardReader {...props} />;
+});
+
+function StandardReader({ document, sidebarCollapsed, onToggleSidebar, onOpenTasks, overlayOpen, onModeChange = () => {} }) {
   const mobile = useMediaQuery('(max-width: 760px)');
   const [scale, setScale] = useState(1);
   const [mobileView, setMobileView] = useState('original');
@@ -30,6 +35,8 @@ export default memo(function Reader({ document, sidebarCollapsed, onToggleSideba
         onClick={mobile ? onOpenTasks : onToggleSidebar}>
         {mobile ? <FileText size={18} /> : sidebarCollapsed ? <PanelLeftOpen size={18} /> : <PanelLeftClose size={18} />}
       </ActionIcon>
+      <SegmentedControl className="reader-mode-switch" size="xs" color="teal" value="standard" onChange={onModeChange}
+        data={[{ label: '常规', value: 'standard' }, { label: '纯视觉识别', value: 'visual' }]} />
       <div className="page-count" aria-label="当前页数">{currentPage} <span>/ {document.pages.length}</span></div>
       <div className="zoom-controls">
         <ActionIcon variant="subtle" color="teal" aria-label="缩小" onClick={() => setScale(value => Math.max(.75, value - .25))}><ZoomOut size={18} /></ActionIcon>
@@ -55,4 +62,4 @@ export default memo(function Reader({ document, sidebarCollapsed, onToggleSideba
       <details><summary>查看原文</summary><Text size="sm" c="dimmed" mt="sm">{popup?.source}</Text></details>
     </Modal>
   </div>;
-});
+}
