@@ -11,6 +11,15 @@ async function saveVisual(id, patch) {
   notifyChange(record);
 }
 
+async function markPageStarted(id, number, singlePage) {
+  const record = await updateDocument(id, current => {
+    const visualPageErrors = { ...(current.visualPageErrors || {}) };
+    delete visualPageErrors[number];
+    return { ...current, visualPageErrors, ...(singlePage ? { visualActivePage: number } : {}) };
+  });
+  notifyChange(record);
+}
+
 async function savePage(id, number, result, usage = {}, error = '') {
   const record = await updateDocument(id, current => {
     const visualPages = [...(current.visualPages || [])];
@@ -73,7 +82,7 @@ export async function runVisualTranslation(id, key, { retry = false, onlyPage = 
     await processVisualPages(pdf.numPages, {
       onlyPage,
       hasResult: async number => !redoPage && Boolean((await getDocument(id))?.visualPages?.[number - 1]),
-      onStart: number => saveVisual(id, { visualActivePage: number }),
+      onStart: number => markPageStarted(id, number, Boolean(onlyPage)),
       translate: async number => {
         const imageUrl = await screenshot(await pdf.getPage(number));
         return translateVisualPage(imageUrl, key);

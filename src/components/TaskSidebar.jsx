@@ -1,7 +1,7 @@
 import { memo } from 'react';
 import { Button, Progress, Text } from '@mantine/core';
 import { Download, FileText, Plus, RotateCcw, Settings, BookOpen } from 'lucide-react';
-import { label, status, tokenCount } from '../app/format.js';
+import { label, status, tokenKilos } from '../app/format.js';
 
 const TaskItem = memo(function TaskItem({ document, selected, onSelect }) {
   const visual = document.mode === 'visual';
@@ -12,8 +12,8 @@ const TaskItem = memo(function TaskItem({ document, selected, onSelect }) {
     <span className="task-icon"><FileText size={17} /></span>
     <span className="task-copy">
       <strong title={document.filename}>{label(document)}</strong>
-      <small>{status(document)} · {progress}% · {tokenCount(tokens?.total)} token</small>
-      {selected && <small>输入 {tokenCount(tokens?.prompt)} · 输出 {tokenCount(tokens?.completion)}</small>}
+      <small>{status(document)} · {progress}%</small>
+      <small>输入 {tokenKilos(tokens?.prompt)} 输出 {tokenKilos(tokens?.completion)}</small>
       {(visual ? document.visualStatus === 'working' : !['done', 'error'].includes(document.status)) && <Progress value={progress} size={3} radius="xl" color="teal" mt={5} />}
     </span>
     {(visual ? document.visualStatus === 'done' : document.status === 'done') && <span className="task-complete" />}

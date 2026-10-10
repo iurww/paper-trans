@@ -4,24 +4,30 @@ export function useSynchronizedScroll({ pageCount, overlayOpen, mobile, mobileVi
   const originalRef = useRef(null);
   const translatedRef = useRef(null);
   const activeVersion = useRef('original');
-  const [currentPage, setCurrentPage] = useState(1);
+  const [sidePages, setSidePages] = useState({ original: 1, translated: 1 });
 
   const getPane = useCallback(version => version === 'translated' ? translatedRef.current : originalRef.current, []);
+  const rememberPage = useCallback((version, pane) => {
+    if (!pane || (version !== 'original' && version !== 'translated')) return;
+    const top = pane.scrollTop + 24;
+    const visible = [...pane.querySelectorAll('.pdf-page')].find(page => page.offsetTop + page.offsetHeight > top);
+    const number = Number(visible?.dataset.page || pageCount);
+    setSidePages(current => current[version] === number ? current : { ...current, [version]: number });
+  }, [pageCount]);
   const updatePage = useCallback((version, pane) => {
     if (!pane) return;
     activeVersion.current = version;
-    const top = pane.scrollTop + 24;
-    const visible = [...pane.querySelectorAll('.pdf-page')].find(page => page.offsetTop + page.offsetHeight > top);
-    setCurrentPage(Number(visible?.dataset.page || pageCount));
-  }, [pageCount]);
+    rememberPage(version, pane);
+  }, [rememberPage]);
 
   const sync = useCallback((from, to) => {
     const source = getPane(from), target = getPane(to);
     if (!source || !target) return;
     const fraction = source.scrollTop / Math.max(1, source.scrollHeight - source.clientHeight);
     target.scrollTop = fraction * Math.max(0, target.scrollHeight - target.clientHeight);
+    rememberPage(from, source);
     updatePage(to, target);
-  }, [getPane, updatePage]);
+  }, [getPane, rememberPage, updatePage]);
 
   useEffect(() => {
     const wheel = event => {
@@ -40,16 +46,18 @@ export function useSynchronizedScroll({ pageCount, overlayOpen, mobile, mobileVi
         target.scrollTop = vertical * Math.max(0, target.scrollHeight - target.clientHeight);
         target.scrollLeft = horizontal * Math.max(0, target.scrollWidth - target.clientWidth);
       }
-      updatePage(source.dataset.version, source);
+      rememberPage('original', originalRef.current);
+      rememberPage('translated', translatedRef.current);
+      activeVersion.current = source.dataset.version || activeVersion.current;
     };
     window.addEventListener('wheel', wheel, { passive: false });
     return () => window.removeEventListener('wheel', wheel);
-  }, [overlayOpen, updatePage]);
+  }, [overlayOpen, rememberPage]);
 
   useEffect(() => {
     if (mobile) updatePage(mobileView, getPane(mobileView));
   }, [mobile, mobileView, getPane, updatePage]);
 
   const setActiveVersion = version => { activeVersion.current = version; };
-  return { originalRef, translatedRef, currentPage, updatePage, sync, setActiveVersion };
+  return { originalRef, translatedRef, sidePages, updatePage, sync, setActiveVersion };
 }

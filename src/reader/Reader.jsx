@@ -16,7 +16,7 @@ function StandardReader({ document, sidebarCollapsed, onToggleSidebar, onOpenTas
   const [mobileView, setMobileView] = useState('original');
   const [popup, setPopup] = useState(null);
   const readerRef = useRef(null);
-  const { originalRef, translatedRef, currentPage, updatePage, sync, setActiveVersion } = useSynchronizedScroll({
+  const { originalRef, translatedRef, sidePages, updatePage, sync, setActiveVersion } = useSynchronizedScroll({
     pageCount: document.pages.length, overlayOpen: overlayOpen || Boolean(popup), mobile, mobileView,
   });
 
@@ -37,7 +37,7 @@ function StandardReader({ document, sidebarCollapsed, onToggleSidebar, onOpenTas
       </ActionIcon>
       <SegmentedControl className="reader-mode-switch" size="xs" color="teal" value="standard" onChange={onModeChange}
         data={[{ label: '常规', value: 'standard' }, { label: '纯视觉识别', value: 'visual' }]} />
-      <div className="page-count" aria-label="当前页数">{currentPage} <span>/ {document.pages.length}</span></div>
+      <div className="page-count" aria-label="两侧页数"><span>左 {sidePages.original} <em>/ {document.pages.length}</em></span><span>右 {sidePages.translated} <em>/ {document.pages.length}</em></span></div>
       <div className="zoom-controls">
         <ActionIcon variant="subtle" color="teal" aria-label="缩小" onClick={() => setScale(value => Math.max(.75, value - .25))}><ZoomOut size={18} /></ActionIcon>
         <ActionIcon variant="subtle" color="teal" aria-label="放大" onClick={() => setScale(value => Math.min(2.5, value + .25))}><ZoomIn size={18} /></ActionIcon>

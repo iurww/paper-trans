@@ -22,7 +22,8 @@ export default function VisionReader({ document, settings, sidebarCollapsed, onT
   const mobile = useMediaQuery('(max-width: 760px)');
   const [pages, setPages] = useState([]);
   const [pageError, setPageError] = useState('');
-  const [currentPage, setCurrentPage] = useState(1);
+  const [sidePages, setSidePages] = useState({ original: 1, translated: 1 });
+  const [activePage, setActivePage] = useState(1);
   const [scale, setScale] = useState(1);
   const [mobileView, setMobileView] = useState('translated');
   const originalRef = useRef(null);
@@ -39,9 +40,15 @@ export default function VisionReader({ document, settings, sidebarCollapsed, onT
 
   useEffect(() => { void runVisualTranslation(document.id, settings?.visionKey, { retry: Boolean(settings?.visionKey) }); }, [document.id, settings?.visionKey]);
 
-  const updatePage = useCallback((_version, root) => {
+  const updatePage = useCallback((version, root) => {
     const first = [...root.querySelectorAll('.pdf-page, .visual-page')].find(page => page.getBoundingClientRect().bottom > root.getBoundingClientRect().top + 40);
-    if (first) setCurrentPage(Number(first.dataset.page));
+    if (!first) return;
+    const number = Number(first.dataset.page);
+    if (!number) return;
+    setActivePage(number);
+    if (version === 'original' || version === 'translated') {
+      setSidePages(current => current[version] === number ? current : { ...current, [version]: number });
+    }
   }, []);
 
   const downloadJson = () => {
@@ -62,11 +69,11 @@ export default function VisionReader({ document, settings, sidebarCollapsed, onT
       </ActionIcon>
       <SegmentedControl className="reader-mode-switch" size="xs" color="teal" value="visual" onChange={onModeChange}
         data={[{ label: '常规', value: 'standard' }, { label: '纯视觉识别', value: 'visual' }]} />
-      <div className="page-count" aria-label="当前页数">{currentPage} <span>/ {pages.length || '…'}</span></div>
+      <div className="page-count" aria-label="两侧页数"><span>左 {sidePages.original} <em>/ {pages.length || '…'}</em></span><span>右 {sidePages.translated} <em>/ {pages.length || '…'}</em></span></div>
       <div className="zoom-controls">
         {(document.visualPages || []).some(Boolean) && <ActionIcon variant="subtle" color="teal" aria-label="下载对照 JSON" title="下载对照 JSON" onClick={downloadJson}><Download size={18} /></ActionIcon>}
-        {document.visualPages?.[currentPage - 1] && <ActionIcon variant="subtle" color="teal" aria-label="重新识别当前页" title="重新识别当前页" disabled={!settings?.visionKey || document.visualStatus === 'working'}
-          onClick={() => runVisualTranslation(document.id, settings.visionKey, { retry: true, onlyPage: currentPage, redoPage: true })}><RotateCcw size={18} /></ActionIcon>}
+        {document.visualPages?.[activePage - 1] && <ActionIcon variant="subtle" color="teal" aria-label="重新识别当前页" title="重新识别当前页" disabled={!settings?.visionKey || document.visualStatus === 'working'}
+          onClick={() => runVisualTranslation(document.id, settings.visionKey, { retry: true, onlyPage: activePage, redoPage: true })}><RotateCcw size={18} /></ActionIcon>}
         <ActionIcon variant="subtle" color="teal" aria-label="缩小" onClick={() => setScale(value => Math.max(.75, value - .25))}><ZoomOut size={18} /></ActionIcon>
         <ActionIcon variant="subtle" color="teal" aria-label="放大" onClick={() => setScale(value => Math.min(2.5, value + .25))}><ZoomIn size={18} /></ActionIcon>
       </div>
@@ -91,7 +98,7 @@ export default function VisionReader({ document, settings, sidebarCollapsed, onT
                 <Alert color="red" mb="sm">重新识别失败：{document.visualPageErrors[page.number]}</Alert>}
               {result ? visibleParagraphs.length ? visibleParagraphs.map((paragraph, index) =>
                 <VisualParagraph key={index} paragraph={paragraph} />) : <p className="visual-empty">此页无文字</p>
-                : <div className="visual-pending">{document.visualActivePage === page.number
+                : <div className="visual-pending">{document.visualStatus === 'working' && !document.visualPageErrors?.[page.number]
                   ? <><Loader size="xs" color="teal" /> 正在识别并翻译…</>
                   : document.visualPageErrors?.[page.number]
                     ? <>此页失败：{document.visualPageErrors[page.number]}

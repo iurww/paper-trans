@@ -17,10 +17,10 @@ export default function App() {
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [uploadOpen, setUploadOpen] = useState(false);
-  const [uploadMode, setUploadMode] = useState('standard');
+  const [uploadMode, setUploadMode] = useState('visual');
   const [sidebarCollapsed, setSidebarCollapsed] = useState(() => localStorage.getItem(SIDEBAR_KEY) === 'true');
   const [notice, setNotice] = useState('');
-  const [mode, setMode] = useState('standard');
+  const [mode, setMode] = useState('visual');
   const fileInput = useRef(null);
   const showError = useCallback(message => setNotice(message), []);
   const openSettings = useCallback(() => { setDrawerOpen(false); setSettingsOpen(true); }, []);
@@ -43,7 +43,7 @@ export default function App() {
   const chooseFile = useCallback(() => { setDrawerOpen(false); setUploadMode(mode); setUploadOpen(true); }, [mode]);
   const selectDocument = useCallback(id => {
     const record = library.documents.find(item => item.id === id);
-    setMode(record?.mode || (record?.visualStatus === 'done' && !record?.translated ? 'visual' : 'standard'));
+    setMode(record?.mode || (record?.translated ? 'standard' : 'visual'));
     library.setSelectedId(id); setDrawerOpen(false);
   }, [library.documents, library.setSelectedId]);
   const changeMode = useCallback(value => {

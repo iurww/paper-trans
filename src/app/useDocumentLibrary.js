@@ -42,7 +42,7 @@ export function useDocumentLibrary(settings, onNeedSettings, onError) {
 
   useEffect(() => { if (settings.key) runQueue(settings); }, [settings]);
 
-  const upload = useCallback(async (file, mode = 'standard') => {
+  const upload = useCallback(async (file, mode = 'visual') => {
     if (!file || !/\.pdf$/i.test(file.name) || file.type && file.type !== 'application/pdf') {
       onError('请选择 PDF 文件'); return false;
     }

@@ -16,7 +16,7 @@ test('reader and task sidebar render the saved PDF record without changing its f
     ]);
     const document = {
       id: 'paper-1', filename: 'paper.pdf', status: 'done', progress: 100,
-      tokens: { prompt: 12, completion: 8, total: 20 },
+      tokens: { prompt: 12000, completion: 8000, total: 20000 },
       pages: [{ number: 1, width: 612, height: 792, lines: [] }],
       original: new Blob(), translated: new Blob(),
     };
@@ -29,6 +29,7 @@ test('reader and task sidebar render the saved PDF record without changing its f
     assert.match(reader, /放大/);
     assert.match(reader, /将右侧对齐到左侧/);
     assert.match(reader, /纯视觉识别/);
+    assert.match(reader.replaceAll('<!-- -->', ''), /左 1 .*右 1/);
     const visualReader = wrap(React.createElement(Reader, {
       document: { ...document, pages: null, translated: null, visualPages: [{ number: 1, paragraphs: [] }], visualStatus: 'done' },
       mode: 'visual', settings: { visionKey: 'test-key' },
@@ -37,6 +38,7 @@ test('reader and task sidebar render the saved PDF record without changing its f
     assert.match(visualReader, /逐段对照/);
     assert.match(visualReader, /PDF 原件/);
     assert.match(visualReader, /重新识别当前页/);
+    assert.match(visualReader.replaceAll('<!-- -->', ''), /左 1 .*右 1/);
     const screenshotOnlyPage = wrap(React.createElement(PdfPage, {
       page: { number: 1, width: 612, height: 792 }, pdf: null, version: 'original', scale: 1,
       visible: true, onSentenceOpen() {}, onSentenceHover() {}, mobile: false,
@@ -81,6 +83,8 @@ test('reader and task sidebar render the saved PDF record without changing its f
     }));
     assert.match(sidebar, /下载译文 PDF/);
     assert.match(sidebar, /按句重译/);
-    assert.match(sidebar.replaceAll('<!-- -->', ''), /输入 12/);
+    const sidebarText = sidebar.replaceAll('<!-- -->', '');
+    assert.match(sidebarText, /100%<\/small><small>输入 12k 输出 8k/);
+    assert.equal((sidebarText.match(/输入 /g) || []).length, 1);
   } finally { await vite.close(); }
 });

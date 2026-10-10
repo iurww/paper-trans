@@ -7,6 +7,7 @@ export const status = document => document.mode === 'visual' ? ({
 })[document.status] || document.status;
 
 export const tokenCount = value => Number(value || 0).toLocaleString();
+export const tokenKilos = value => `${Math.round(Number(value || 0) / 1000)}k`;
 export const tokenSummary = document =>
   `Token ${tokenCount(document.tokens?.total)}（输入 ${tokenCount(document.tokens?.prompt)} · 输出 ${tokenCount(document.tokens?.completion)}）`;
 

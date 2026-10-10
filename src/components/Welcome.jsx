@@ -1,7 +1,7 @@
 import { Button, Text, Title } from '@mantine/core';
 import { Plus } from 'lucide-react';
 
-export default function Welcome({ onUpload, mode = 'standard' }) {
+export default function Welcome({ onUpload, mode = 'visual' }) {
   return <section className="welcome">
     <div className="welcome-deco" aria-hidden="true"><span className="deco-page back" /><span className="deco-page front"><i /><i /><i /><i /><i /></span><span className="deco-spark">✦</span></div>
     <Text className="eyebrow">READ WITHOUT BORDERS</Text>

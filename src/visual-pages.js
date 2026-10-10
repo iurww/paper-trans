@@ -1,19 +1,17 @@
-import { TranslationConfigurationError } from './translation-api.js';
-
 export async function processVisualPages(pageCount, {
   onlyPage = null, hasResult, onStart, translate, onSuccess, onFailure,
 }) {
+  const numbers = [];
   for (let number = 1; number <= pageCount; number++) {
-    if (onlyPage && number !== onlyPage || await hasResult(number)) continue;
+    if (!onlyPage || number === onlyPage) numbers.push(number);
+  }
+  const pending = (await Promise.all(numbers.map(async number => await hasResult(number) ? 0 : number))).filter(Boolean);
+  await Promise.all(pending.map(async number => {
     await onStart(number);
-    let result;
     try {
-      result = await translate(number);
+      await onSuccess(number, await translate(number));
     } catch (error) {
       await onFailure(number, error);
-      if (error instanceof TranslationConfigurationError) break;
-      continue;
     }
-    await onSuccess(number, result);
-  }
+  }));
 }
