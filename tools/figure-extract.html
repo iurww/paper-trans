@@ -1,0 +1,438 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>PaperLens 图表提取实验</title>
+  <style>
+    :root { font-family: system-ui, sans-serif; color: #17212e; background: #f3f5f8; }
+    * { box-sizing: border-box; }
+    body { margin: 0; }
+    header { background: white; border-bottom: 1px solid #d8dfe8; padding: 14px 20px; }
+    h1 { margin: 0 0 5px; font-size: 20px; }
+    header p { margin: 0; color: #526074; font-size: 13px; }
+    .bar { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; padding: 10px 20px; background: white; border-bottom: 1px solid #d8dfe8; }
+    button, select, input { font: inherit; }
+    button, select, input[type=number], input[type=text] { border: 1px solid #b6c2d0; border-radius: 5px; padding: 7px 9px; background: white; }
+    button { cursor: pointer; }
+    button:disabled { opacity: .45; cursor: default; }
+    input[type=file] { max-width: 320px; }
+    main { display: grid; grid-template-columns: minmax(230px, 280px) minmax(380px, 1fr) minmax(320px, 1fr); gap: 12px; padding: 12px; }
+    section { min-width: 0; background: white; border: 1px solid #d8dfe8; border-radius: 7px; overflow: hidden; }
+    h2 { margin: 0; padding: 10px 12px; border-bottom: 1px solid #e2e8ef; font-size: 15px; }
+    .panel { padding: 10px; }
+    .panel p { color: #526074; font-size: 12px; line-height: 1.45; }
+    #candidates { width: 100%; height: 310px; font-size: 12px; }
+    #candidates option { padding: 4px; }
+    .row { display: flex; gap: 7px; align-items: center; flex-wrap: wrap; margin: 8px 0; }
+    .row label { font-size: 12px; color: #526074; }
+    .row input[type=number] { width: 78px; }
+    #label { min-width: 150px; flex: 1; }
+    .page-view, .crop-view { height: calc(100vh - 200px); min-height: 510px; overflow: auto; padding: 10px; }
+    #page-wrap { position: relative; width: max-content; margin: 0 auto; touch-action: none; }
+    #page { display: block; cursor: crosshair; }
+    #box { position: absolute; border: 3px solid #f0650d; background: #f0650d1c; pointer-events: none; }
+    #preview { display: block; max-width: 100%; height: auto; margin: 0 auto; }
+    #preview.empty { display: none; }
+    #message { color: #526074; font-size: 12px; min-height: 18px; padding: 0 20px 10px; white-space: pre-wrap; }
+    #message.error { color: #b42318; }
+    #progress { font-size: 12px; color: #526074; }
+    @media (max-width: 1200px) { main { grid-template-columns: 230px minmax(0, 1fr); } main section:last-child { grid-column: 1 / -1; } .crop-view { height: 400px; min-height: 0; } }
+    @media (max-width: 750px) { main { grid-template-columns: 1fr; } main section:last-child { grid-column: auto; } .page-view { height: 65vh; } }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>图表提取实验</h1>
+    <p>本页只在浏览器中处理 PDF。标题扫描生成待审候选；逐页核对、调框、导出后才能确认完整。</p>
+  </header>
+  <div class="bar">
+    <input id="file" type="file" accept="application/pdf,.pdf" aria-label="选择 PDF" />
+    <button id="scan" disabled>扫描标题</button>
+    <button id="previous-page" disabled>上一页</button>
+    <span id="page-number">未打开 PDF</span>
+    <button id="next-page" disabled>下一页</button>
+    <label><input id="checked" type="checkbox" disabled /> 本页已核对</label>
+    <span id="progress"></span>
+  </div>
+  <div id="message" role="status"></div>
+  <main>
+    <section>
+      <h2>候选与裁切框</h2>
+      <div class="panel">
+        <select id="candidates" size="12" aria-label="标题候选"></select>
+        <div class="row"><button id="manual" disabled>新增当前页项目</button><button id="skip" disabled>排除候选</button></div>
+        <div class="row"><label for="label">编号</label><input id="label" type="text" placeholder="figure_1 / table_s1" /></div>
+        <div class="row"><label for="x0">x0</label><input id="x0" type="number" step="0.1" /><label for="y0">y0</label><input id="y0" type="number" step="0.1" /></div>
+        <div class="row"><label for="x1">x1</label><input id="x1" type="number" step="0.1" /><label for="y1">y1</label><input id="y1" type="number" step="0.1" /></div>
+        <div class="row"><label for="scale">导出倍率</label><select id="scale"><option>4</option><option>3</option><option>2</option><option>1</option></select><button id="render" disabled>生成高清截图</button></div>
+        <div class="row"><button id="download" disabled>下载预览</button><button id="accept" disabled>确认并下载 PNG</button></div>
+        <div class="row"><button id="manifest" disabled>下载复核清单</button><label>导入清单 <input id="resume" type="file" accept="application/json,.json" /></label></div>
+        <p>在中间原页上拖动可重画橙色框；也可直接修改坐标。确认前请检查主体、完整图题或表题、所有面板、脚注及最外表线。没有标题的图表请手动新增。</p>
+      </div>
+    </section>
+    <section><h2>PDF 原页（拖动绘制裁切框）</h2><div class="page-view"><div id="page-wrap"><canvas id="page"></canvas><div id="box" hidden></div></div></div></section>
+    <section><h2>高清裁切预览</h2><div id="margin" class="panel" style="font-size:12px;color:#526074">尚未生成预览</div><div class="crop-view"><img id="preview" class="empty" alt="待生成的高清截图" /></div></section>
+  </main>
+  <script type="module">
+    import * as pdfjs from 'pdfjs-dist';
+    import workerUrl from 'pdfjs-dist/build/pdf.worker.min.mjs?url';
+
+    pdfjs.GlobalWorkerOptions.workerSrc = workerUrl;
+    const ids = ['file','scan','previous-page','next-page','page-number','checked','progress','message','candidates','manual','skip','label','x0','y0','x1','y1','scale','render','download','accept','manifest','resume','page','page-wrap','box','preview','margin'];
+    const el = Object.fromEntries(ids.map(id => [id, document.getElementById(id)]));
+    const state = { file: null, fileHash: null, doc: null, loadingTask: null, page: 1, pageScale: 1, pageWidth: 0, pageHeight: 0, candidates: [], selected: null, accepted: [], checkedPages: new Set(), scanComplete: false, storageKey: null, blob: null, blobUrl: null, previewMargins: null, renderTask: null, pageTask: null, scanning: false, documentVersion: 0, previewVersion: 0, sessionId: Date.now().toString(36), exportSequence: 0 };
+    const captionPattern = /^\s*((?:(?:Extended\s+Data\s+)?(?:Fig(?:ure)?\.?|Table)|图|表))\s*(S\s*\d+(?:[.-]\d+)*|\d+(?:\.\d+)*|[IVX]+)\s*(?:[:：.、|\-]\s*|\s+)(.*)$/i;
+    const number = value => Number.parseFloat(value);
+    const clamp = (value, a, b) => Math.min(b, Math.max(a, value));
+    const round = value => Math.round(value * 10) / 10;
+    const tick = () => new Promise(resolve => requestAnimationFrame(resolve));
+
+    function message(value, error = false) { el.message.textContent = value; el.message.classList.toggle('error', error); }
+    function clearPreview() {
+      state.previewVersion++;
+      if (state.blobUrl) URL.revokeObjectURL(state.blobUrl);
+      state.blobUrl = null; state.blob = null; state.previewMargins = null; el.preview.removeAttribute('src'); el.preview.classList.add('empty'); el.margin.textContent = '尚未生成预览';
+      el.download.disabled = true; el.accept.disabled = true;
+    }
+    function fileName(suffix = 'preview') {
+      const stem = state.file.name.replace(/\.pdf$/i, '').replace(/[^a-z0-9_-]+/gi, '_').slice(0, 48);
+      return `${stem}_p${state.page}_${el.label.value.trim().replace(/[^a-z0-9_.-]+/gi, '_')}_${state.sessionId}_${suffix}.png`;
+    }
+    function download(blob, name) {
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a'); link.href = url; link.download = name;
+      document.body.append(link); link.click(); link.remove();
+      window.setTimeout(() => URL.revokeObjectURL(url), 60000);
+    }
+    function reviewData() {
+      const unresolved = state.candidates.filter(item => item.status === 'pending').length;
+      const unmatched = state.candidates.filter(item => item.status === 'accepted' && !state.accepted.some(row => row.page === item.page && row.label === item.label && row.file)).length;
+      return {
+        version: 2, source: state.file.name, source_size: state.file.size, source_last_modified: state.file.lastModified, source_sha256: state.fileHash,
+        pages: state.doc.numPages, scan_complete: state.scanComplete,
+        checked_pages: [...state.checkedPages].sort((a,b) => a-b),
+        unresolved_candidates: unresolved, unmatched_accepted_candidates: unmatched,
+        complete: state.scanComplete && state.checkedPages.size === state.doc.numPages && unresolved === 0 && unmatched === 0,
+        candidates: state.candidates, crops: state.accepted,
+      };
+    }
+    function persist() {
+      if (!state.doc || !state.storageKey) return;
+      try { localStorage.setItem(state.storageKey, JSON.stringify(reviewData())); }
+      catch { message('浏览器未能自动保存进度；请下载复核清单 JSON。', true); }
+    }
+    function restore(data) {
+      if (!state.doc || data.source !== state.file.name || data.pages !== state.doc.numPages ||
+          (data.source_size !== undefined && data.source_size !== state.file.size) ||
+          (data.source_last_modified !== undefined && data.source_last_modified !== state.file.lastModified) ||
+          (data.source_sha256 && data.source_sha256 !== state.fileHash)) throw new Error('复核清单与当前 PDF 不匹配。');
+      state.checkedPages = new Set((data.checked_pages || []).filter(n => Number.isInteger(n) && n >= 1 && n <= state.doc.numPages));
+      state.accepted = Array.isArray(data.crops) ? data.crops.filter(row => row.source === state.file.name && row.page >= 1 && row.page <= state.doc.numPages) : [];
+      state.candidates = Array.isArray(data.candidates) ? data.candidates.filter(row => Array.isArray(row.caption) && row.caption.length === 4) : [];
+      state.scanComplete = Boolean(data.scan_complete) && state.candidates.length === (data.candidates || []).length;
+      state.selected = null;
+      refreshCandidates(); pageStatus(); persist();
+    }
+    function box() {
+      const values = ['x0','y0','x1','y1'].map(id => number(el[id].value));
+      if (values.some(value => !Number.isFinite(value))) return null;
+      const [x0,y0,x1,y1] = values;
+      if (x1 <= x0 || y1 <= y0) return null;
+      return values;
+    }
+    function drawBox() {
+      const values = box();
+      if (!values) { el.box.hidden = true; return; }
+      const [x0,y0,x1,y1] = values;
+      el.box.hidden = false;
+      Object.assign(el.box.style, { left: `${x0 * state.pageScale}px`, top: `${y0 * state.pageScale}px`, width: `${(x1-x0) * state.pageScale}px`, height: `${(y1-y0) * state.pageScale}px` });
+    }
+    function setBox(values) {
+      ['x0','y0','x1','y1'].forEach((id,i) => { el[id].value = String(round(values[i])); });
+      clearPreview(); drawBox();
+    }
+    function pageStatus() {
+      el['page-number'].textContent = state.doc ? `第 ${state.page} / ${state.doc.numPages} 页` : '未打开 PDF';
+      el.checked.checked = state.checkedPages.has(state.page);
+      const summary = state.doc ? reviewData() : null;
+      el.progress.textContent = summary ? `已核对 ${state.checkedPages.size} / ${state.doc.numPages} 页 · 已确认 ${state.accepted.length} 项 · 待审 ${summary.unresolved_candidates} 项 · 缺截图 ${summary.unmatched_accepted_candidates} 项${summary.complete ? ' · 全部已核对' : ''}` : '';
+      el['previous-page'].disabled = !state.doc || state.page <= 1;
+      el['next-page'].disabled = !state.doc || state.page >= state.doc.numPages;
+      el.manual.disabled = !state.doc;
+      el.checked.disabled = !state.doc;
+      el.render.disabled = !state.doc;
+      el.manifest.disabled = !state.doc;
+    }
+    function refreshCandidates() {
+      const before = state.selected;
+      el.candidates.innerHTML = '';
+      state.candidates.forEach((candidate,index) => {
+        const option = document.createElement('option'); option.value = String(index);
+        const prefix = candidate.status === 'excluded' ? '×' : candidate.status === 'accepted' ? '✓' : '?';
+        option.textContent = `${prefix} p${candidate.page} ${candidate.label} ${candidate.text.slice(0,65)}`;
+        el.candidates.append(option);
+      });
+      if (before !== null) el.candidates.value = String(before);
+      el.skip.disabled = before === null;
+    }
+    function sourceLine(items, viewport) {
+      const lines = [];
+      for (const item of items) {
+        if (!item.str?.trim() || !item.width) continue;
+        const transform = pdfjs.Util.transform(viewport.transform, item.transform);
+        const height = Math.max(3, Math.hypot(transform[2], transform[3]));
+        const entry = { text: item.str, x0: transform[4], x1: transform[4] + item.width, y: transform[5], height };
+        let line = lines.find(candidate => Math.abs(candidate.y - entry.y) < Math.max(2, height * .35) && Math.abs(candidate.height - height) < Math.max(4, height * .6));
+        if (!line) { line = { y: entry.y, height, entries: [] }; lines.push(line); }
+        line.entries.push(entry);
+      }
+      const output = [];
+      for (const line of lines) {
+        line.entries.sort((a,b) => a.x0 - b.x0);
+        let group = [];
+        for (const entry of line.entries) {
+          const previous = group.at(-1);
+          const gap = previous && entry.x0 - previous.x1;
+          const columnBreak = previous && previous.x1 < viewport.width * .5 && entry.x0 > viewport.width * .5 && gap > 7;
+          const captionToken = previous && /^(?:Figure|Fig\.?|Table)(?:\s*(?:S?\d|[IVX]+)|$)/i.test(entry.text.trim()) && gap > 6;
+          if (previous && (gap > Math.max(18, entry.height * 2.5) || columnBreak || captionToken)) { output.push(group); group = []; }
+          group.push(entry);
+        }
+        if (group.length) output.push(group);
+      }
+      return output.map(group => ({
+        text: group.map(entry => entry.text).join(' ').replace(/\s+/g,' ').trim(),
+        rect: [Math.min(...group.map(entry => entry.x0)), Math.min(...group.map(entry => entry.y - entry.height)), Math.max(...group.map(entry => entry.x1)), Math.max(...group.map(entry => entry.y + entry.height * .25))],
+      })).sort((a,b) => a.rect[1] - b.rect[1] || a.rect[0] - b.rect[0]);
+    }
+    function candidateFromLine(line, page) {
+      const match = line.text.match(captionPattern);
+      if (!match) return null;
+      const kind = /table|表/i.test(match[1]) ? 'table' : 'figure';
+      const prefix = /extended/i.test(match[1]) ? 'extended_data_' : '';
+      const suffix = match[2].replace(/\s+/g,'').toLowerCase();
+      const label = `${prefix}${kind}_${suffix}`;
+      return { page, kind, label, text: line.text, caption: line.rect, status: 'pending' };
+    }
+    async function scan() {
+      if (!state.doc || state.scanning) return;
+      const version = state.documentVersion;
+      const previous = new Map(state.candidates.map(item => [`${item.page}|${item.label}|${item.text}`,item.status]));
+      state.scanning = true; state.scanComplete = false; el.scan.disabled = true; state.candidates = []; state.selected = null; refreshCandidates(); pageStatus();
+      try {
+        for (let n = 1; n <= state.doc.numPages; n++) {
+          if (version !== state.documentVersion) return;
+          message(`正在扫描第 ${n} / ${state.doc.numPages} 页…`);
+          const page = await state.doc.getPage(n);
+          if (version !== state.documentVersion) return;
+          const content = await page.getTextContent();
+          if (version !== state.documentVersion) return;
+          const lines = sourceLine(content.items, page.getViewport({ scale: 1 }));
+          for (const line of lines) {
+            const candidate = candidateFromLine(line, n);
+            if (candidate) {
+              candidate.status = previous.get(`${candidate.page}|${candidate.label}|${candidate.text}`) || 'pending';
+              state.candidates.push(candidate);
+            }
+          }
+          if (n % 4 === 0) await tick();
+        }
+        state.scanComplete = true; refreshCandidates(); pageStatus(); persist();
+        message(`扫描得到 ${state.candidates.length} 条待审标题。请逐页检查；候选数不等于真实图表数。`);
+      } catch (error) { message(String(error.message || error), true); }
+      finally { state.scanning = false; el.scan.disabled = !state.doc; }
+    }
+    function suggestedBox(candidate, width, height) {
+      const [left, top, right, bottom] = candidate.caption;
+      const center = (left + right) / 2;
+      const full = right - left > width * .52 || Math.abs(center - width / 2) < width * .07;
+      const x0 = full ? width * .06 : center < width / 2 ? width * .06 : width * .51;
+      const x1 = full ? width * .94 : center < width / 2 ? width * .49 : width * .94;
+      if (candidate.kind === 'figure') return [x0,Math.max(0,top - 210),x1,Math.min(height,bottom + 5)];
+      return [x0,Math.max(0,top - 5),x1,Math.min(height,bottom + 210)];
+    }
+    async function renderPage() {
+      if (!state.doc) return;
+      if (state.pageTask) { state.pageTask.cancel(); try { await state.pageTask.promise; } catch { /* cancelled */ } state.pageTask = null; }
+      const version = state.documentVersion, number = state.page;
+      const page = await state.doc.getPage(number);
+      if (version !== state.documentVersion || number !== state.page) return;
+      const unit = page.getViewport({ scale: 1 });
+      state.pageWidth = unit.width; state.pageHeight = unit.height;
+      const available = Math.max(400, el['page-wrap'].parentElement.clientWidth - 20);
+      const scale = clamp(available / unit.width, .6, 1.8);
+      const viewport = page.getViewport({ scale });
+      state.pageScale = scale;
+      el.page.width = Math.ceil(viewport.width); el.page.height = Math.ceil(viewport.height);
+      state.pageTask = page.render({ canvasContext: el.page.getContext('2d', {alpha: false}), viewport });
+      try { await state.pageTask.promise; } catch (error) { if (error.name !== 'RenderingCancelledException') throw error; }
+      state.pageTask = null;
+      if (version === state.documentVersion && number === state.page) drawBox();
+    }
+    async function goToPage(number) {
+      if (!state.doc || number < 1 || number > state.doc.numPages) return;
+      state.page = number; pageStatus(); clearPreview(); await renderPage();
+    }
+    async function selectCandidate(index) {
+      const candidate = state.candidates[index]; if (!candidate) return;
+      state.selected = index; refreshCandidates();
+      await goToPage(candidate.page);
+      const page = await state.doc.getPage(candidate.page);
+      const view = page.getViewport({scale: 1});
+      el.label.value = candidate.label;
+      const suggested = suggestedBox(candidate, view.width, view.height);
+      setBox(suggested);
+      el['page-wrap'].parentElement.scrollTop = Math.max(0, suggested[1] * state.pageScale - 30);
+      message('橙色框只是标题附近的初始建议。请对照原页重画或修改坐标，再生成高清截图。');
+    }
+    function measureMargins(ctx, width, height) {
+      const limitX = Math.min(101, width), limitY = Math.min(101, height);
+      const dark = (data, index) => data[index] < 230 || data[index+1] < 230 || data[index+2] < 230;
+      const top = ctx.getImageData(0, 0, width, limitY).data;
+      let t = null;
+      for (let y=0; y<limitY && t===null; y++) for (let x=0; x<width; x++) if (dark(top, 4*(y*width+x))) { t=y; break; }
+      const bottom = ctx.getImageData(0, height-limitY, width, limitY).data;
+      let b = null;
+      for (let y=limitY-1; y>=0 && b===null; y--) for (let x=0; x<width; x++) if (dark(bottom, 4*(y*width+x))) { b=limitY-1-y; break; }
+      const left = ctx.getImageData(0, 0, limitX, height).data;
+      let l = null;
+      for (let x=0; x<limitX && l===null; x++) for (let y=0; y<height; y++) if (dark(left, 4*(y*limitX+x))) { l=x; break; }
+      const right = ctx.getImageData(width-limitX, 0, limitX, height).data;
+      let r = null;
+      for (let x=limitX-1; x>=0 && r===null; x--) for (let y=0; y<height; y++) if (dark(right, 4*(y*limitX+x))) { r=limitX-1-x; break; }
+      return [l,t,r,b];
+    }
+    function showMargins(margins) {
+      const sides = ['左','上','右','下'];
+      const display = margins.map((value,index) => `${sides[index]} ${value === null ? '边缘 100px 内未测到内容' : `${value}px`}`).join(' · ');
+      const tight = margins.some(value => value !== null && value < 6);
+      const loose = margins.some(value => value === null || value > 50);
+      el.margin.textContent = `四边可见内容余量：${display}。${tight ? '有边缘贴近内容，检查是否截断。' : ''}${loose ? '有边缘留白较多，检查是否过宽。' : ''}${!tight && !loose ? '请对照原页确认主体、标题和脚注完整。' : ''}`;
+    }
+    async function makePreview() {
+      if (!state.doc || !box()) return message('请先画出有效裁切框。', true);
+      const label = el.label.value.trim();
+      if (!/^(?:extended_data_)?(?:figure|table)_[a-z0-9][a-z0-9_.-]*$/i.test(label)) return message('编号请写成 figure_1、table_2.1、table_s1 等格式。', true);
+      const [x0,y0,x1,y1] = box();
+      const factor = Number(el.scale.value);
+      const width = Math.ceil((x1-x0) * factor), height = Math.ceil((y1-y0) * factor);
+      if (width < 4 || height < 4 || width > 8192 || height > 8192 || width * height > 50000000) return message('截图尺寸超出当前 Canvas 安全范围，请缩小框或降低倍率。', true);
+      const pageNumber = state.page, documentVersion = state.documentVersion, doc = state.doc;
+      clearPreview(); const previewVersion = state.previewVersion;
+      el.render.disabled = true; message(`正在从原 PDF 渲染 ${width} × ${height} PNG…`);
+      try {
+        const page = await doc.getPage(pageNumber);
+        const unit = page.getViewport({ scale: 1 });
+        if (x0 < 0 || y0 < 0 || x1 > unit.width + .2 || y1 > unit.height + .2) throw new Error('裁切框超出 PDF 页面，请调整坐标。');
+        const canvas = document.createElement('canvas'); canvas.width = width; canvas.height = height;
+        const viewport = page.getViewport({ scale: factor });
+        const ctx = canvas.getContext('2d', {alpha: false});
+        await page.render({ canvasContext: ctx, viewport, transform: [1,0,0,1,-x0 * factor,-y0 * factor] }).promise;
+        if (previewVersion !== state.previewVersion || documentVersion !== state.documentVersion || pageNumber !== state.page) return;
+        const margins = measureMargins(ctx, width, height);
+        const blob = await new Promise((resolve,reject) => canvas.toBlob(blob => blob ? resolve(blob) : reject(new Error('无法编码 PNG')), 'image/png'));
+        if (previewVersion !== state.previewVersion || documentVersion !== state.documentVersion || pageNumber !== state.page) return;
+        state.blob = blob; state.previewMargins = margins; showMargins(margins);
+        state.blobUrl = URL.createObjectURL(state.blob);
+        el.preview.src = state.blobUrl; el.preview.classList.remove('empty');
+        el.download.disabled = false; el.accept.disabled = false;
+        message(`已渲染 ${width} × ${height} PNG。确认内容完整后下载并加入清单。`);
+      } catch (error) { message(String(error.message || error), true); }
+      finally { el.render.disabled = false; }
+    }
+    function accept() {
+      if (!state.blob || !box()) return;
+      const row = { source: state.file.name, page: state.page, label: el.label.value.trim(), box_points: box().map(round), pixels: [Math.ceil((box()[2]-box()[0])*Number(el.scale.value)),Math.ceil((box()[3]-box()[1])*Number(el.scale.value))], file: fileName(`r${++state.exportSequence}`), scale: Number(el.scale.value), content_margins_px: state.previewMargins };
+      download(state.blob,row.file);
+      const existing = state.accepted.findIndex(item => item.page === row.page && item.label === row.label);
+      if (existing >= 0) state.accepted.splice(existing,1,row); else state.accepted.push(row);
+      if (state.selected !== null) { state.candidates[state.selected].label = row.label; state.candidates[state.selected].status = 'accepted'; }
+      refreshCandidates(); pageStatus(); persist();
+      message(`已下载并加入清单：${row.label}。完成本页全部核查后勾选“本页已核对”。`);
+    }
+    async function openFile(file) {
+      const version = ++state.documentVersion;
+      const previousTask = state.loadingTask;
+      state.loadingTask = null;
+      if (previousTask) await previousTask.destroy();
+      if (version !== state.documentVersion) return;
+      clearPreview(); state.file = file; state.fileHash = null; state.doc = null; state.page = 1; state.pageWidth = 0; state.pageHeight = 0; state.candidates = []; state.selected = null; state.accepted = []; state.checkedPages.clear(); state.scanComplete = false; state.storageKey = null; state.sessionId = Date.now().toString(36); state.exportSequence = 0; refreshCandidates(); pageStatus();
+      if (!file) return;
+      message(`正在打开 ${file.name}…`);
+      try {
+        const bytes = new Uint8Array(await file.arrayBuffer());
+        if (version !== state.documentVersion) return;
+        const digest = await crypto.subtle.digest('SHA-256', bytes);
+        if (version !== state.documentVersion) return;
+        state.fileHash = [...new Uint8Array(digest)].map(value => value.toString(16).padStart(2,'0')).join('');
+        state.storageKey = `paperlens.figure-review.${state.fileHash}`;
+        const task = pdfjs.getDocument({ data: bytes });
+        state.loadingTask = task;
+        const doc = await task.promise;
+        if (version !== state.documentVersion) return;
+        state.doc = doc;
+        let saved = null;
+        try { saved = state.storageKey && localStorage.getItem(state.storageKey); } catch { /* JSON export remains available */ }
+        if (saved) {
+          try { restore(JSON.parse(saved)); }
+          catch { message('本地进度与该 PDF 不匹配，请重新扫描或导入复核清单。', true); }
+        }
+        el.scan.disabled = false; pageStatus(); await goToPage(1);
+        message(`已打开 ${file.name}，共 ${state.doc.numPages} 页。${saved && state.scanComplete ? '已恢复本地复核进度。' : '先扫描标题，再逐页核对。'}`);
+      } catch (error) { message(String(error.message || error), true); }
+    }
+
+    el.file.addEventListener('change', () => openFile(el.file.files[0]));
+    el.scan.addEventListener('click', scan);
+    function navigate(number) {
+      state.selected = null; el.candidates.selectedIndex = -1; el.skip.disabled = true; el.label.value = '';
+      for (const id of ['x0','y0','x1','y1']) el[id].value = '';
+      clearPreview(); drawBox(); el['page-wrap'].parentElement.scrollTop = 0; goToPage(number);
+    }
+    el['previous-page'].addEventListener('click', () => navigate(state.page - 1));
+    el['next-page'].addEventListener('click', () => navigate(state.page + 1));
+    el.checked.addEventListener('change', () => { if (el.checked.checked) state.checkedPages.add(state.page); else state.checkedPages.delete(state.page); pageStatus(); persist(); });
+    el.candidates.addEventListener('change', () => selectCandidate(Number(el.candidates.value)));
+    el.skip.addEventListener('click', () => { if (state.selected === null) return; state.candidates[state.selected].status = 'excluded'; refreshCandidates(); pageStatus(); persist(); });
+    el.manual.addEventListener('click', () => { state.selected = null; el.candidates.selectedIndex = -1; el.label.value = ''; el.skip.disabled = true; clearPreview(); message('手动项目：填写编号，在原页拖动画框。'); });
+    for (const id of ['x0','y0','x1','y1']) el[id].addEventListener('input', () => { clearPreview(); drawBox(); });
+    el.label.addEventListener('input', clearPreview);
+    el.scale.addEventListener('change', clearPreview);
+    el.render.addEventListener('click', makePreview);
+    el.download.addEventListener('click', () => { if (state.blob) download(state.blob,fileName()); });
+    el.accept.addEventListener('click', accept);
+    el.manifest.addEventListener('click', () => {
+      const data = reviewData();
+      if (!data.complete) message(`标题扫描${state.scanComplete ? '已完成' : '未完成'}；仍有 ${state.doc.numPages - state.checkedPages.size} 页未核对、${data.unresolved_candidates} 条候选待审、${data.unmatched_accepted_candidates} 条已接受候选缺截图。导出的是草稿清单。`);
+      const suffix = data.complete ? 'complete' : 'draft';
+      download(new Blob([JSON.stringify(data,null,2)+'\n'],{type:'application/json'}),state.file.name.replace(/\.pdf$/i,'')+`_figure_review_${suffix}.json`);
+      persist();
+    });
+    el.resume.addEventListener('change', async () => {
+      if (!state.doc || !el.resume.files[0]) return message('请先选择对应的原 PDF。', true);
+      try {
+        restore(JSON.parse(await el.resume.files[0].text()));
+        message(`已导入复核进度：${state.checkedPages.size} 页、${state.accepted.length} 项。原 PNG 请保留在下载目录。`);
+      } catch (error) { message(String(error.message || error), true); }
+      finally { el.resume.value = ''; }
+    });
+    let drag = null;
+    el.page.addEventListener('pointerdown', event => {
+      if (!state.doc) return;
+      const rect = el.page.getBoundingClientRect();
+      drag = { x: clamp((event.clientX-rect.left)/state.pageScale,0,state.pageWidth), y: clamp((event.clientY-rect.top)/state.pageScale,0,state.pageHeight) };
+      el.page.setPointerCapture(event.pointerId);
+    });
+    el.page.addEventListener('pointermove', event => {
+      if (!drag) return;
+      const rect = el.page.getBoundingClientRect();
+      const x = clamp((event.clientX-rect.left)/state.pageScale,0,state.pageWidth);
+      const y = clamp((event.clientY-rect.top)/state.pageScale,0,state.pageHeight);
+      setBox([Math.min(drag.x,x),Math.min(drag.y,y),Math.max(drag.x,x),Math.max(drag.y,y)]);
+    });
+    el.page.addEventListener('pointerup', () => { drag = null; });
+    el.page.addEventListener('pointercancel', () => { drag = null; });
+  </script>
+</body>
+</html>

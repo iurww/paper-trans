@@ -13,6 +13,8 @@ npm run dev
 
 打开终端显示的地址，填写翻译 API 设置，然后上传 PDF。常规模式处理可提取文字的 PDF；纯视觉识别模式可处理扫描版，在 API 设置中另填 DeepSeek API Key。API 需使用 HTTPS 并允许当前网页来源的跨域请求。生产部署只需 `npm run build` 生成的 `dist/` 静态文件，无 Python 服务端。
 
+图表高分辨率提取目前处于[方案验证阶段](docs/figure-extraction-design.md)，尚未接入产品。启动开发服务器后，打开 `/tools/figure-extract.html` 可对新 PDF 逐页试跑提取；打开 `/tools/figure-review.html` 可并排检查当前工作区已有的验证截图与 PDF 原页。
+
 仓库没有 Python 运行时依赖。维护内置 PDF 中文字体所需的 Python 工具由 `uv` 管理：
 
 ```bash

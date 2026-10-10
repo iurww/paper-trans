@@ -1,0 +1,143 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>PaperLens 图表截图复核</title>
+  <style>
+    :root { font-family: system-ui, sans-serif; color: #17212e; background: #f3f5f8; }
+    * { box-sizing: border-box; }
+    body { margin: 0; }
+    header { background: white; border-bottom: 1px solid #d8dfe8; padding: 16px 22px; }
+    h1 { font-size: 20px; margin: 0 0 7px; }
+    header p { margin: 0; color: #526074; font-size: 13px; }
+    .controls { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; padding: 12px 22px; background: white; }
+    select, button { font: inherit; border: 1px solid #b8c3d1; background: white; border-radius: 6px; padding: 8px 10px; }
+    select { max-width: min(640px, 100%); }
+    button { cursor: pointer; }
+    button:disabled { color: #9aa6b5; cursor: default; }
+    #status { color: #526074; font-size: 13px; margin-left: auto; }
+    main { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 16px; padding: 16px; }
+    section { background: white; border: 1px solid #d8dfe8; border-radius: 8px; min-width: 0; overflow: hidden; }
+    h2 { margin: 0; padding: 12px 14px; font-size: 15px; border-bottom: 1px solid #e4e9ef; }
+    .view { height: calc(100vh - 195px); min-height: 460px; overflow: auto; padding: 12px; text-align: center; }
+    canvas, img { display: block; max-width: none; margin: 0 auto; }
+    #crop { max-width: 100%; height: auto; }
+    #meta { font-size: 12px; color: #526074; padding: 8px 14px; border-top: 1px solid #e4e9ef; overflow-wrap: anywhere; }
+    #error { color: #a52222; padding: 12px 22px; white-space: pre-wrap; }
+    @media (max-width: 850px) { main { grid-template-columns: 1fr; } .view { height: 60vh; } }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>图表截图复核</h1>
+    <p>左侧是 PDF 原页及橙色裁切框，右侧是 4 倍 PNG。逐项检查主体、图题、表题、面板标签、脚注和边缘。</p>
+  </header>
+  <div class="controls">
+    <select id="paper" aria-label="论文"></select>
+    <select id="item" aria-label="图表"></select>
+    <button id="prev" type="button">上一项</button>
+    <button id="next" type="button">下一项</button>
+    <span id="status"></span>
+  </div>
+  <div id="error" role="alert"></div>
+  <main>
+    <section><h2>PDF 原页</h2><div class="view"><canvas id="page"></canvas></div><div id="page-meta" class="meta"></div></section>
+    <section><h2>导出的截图</h2><div class="view"><a id="image-link" target="_blank" rel="noopener"><img id="crop" alt="当前图表截图" /></a></div><div id="meta"></div></section>
+  </main>
+  <script type="module">
+    import * as pdfjs from 'pdfjs-dist';
+    import workerUrl from 'pdfjs-dist/build/pdf.worker.min.mjs?url';
+
+    pdfjs.GlobalWorkerOptions.workerSrc = workerUrl;
+    const manifestUrl = '/output/figure-validation/manifest.json';
+    const nodes = Object.fromEntries(['paper', 'item', 'prev', 'next', 'status', 'error', 'page', 'crop', 'image-link', 'meta', 'page-meta'].map(id => [id, document.getElementById(id)]));
+    const state = { rows: [], papers: [], current: 0, pdf: null, loadingTask: null, pdfSource: null, renderTask: null };
+    const fileUrl = path => '/' + path.split('/').map(encodeURIComponent).join('/');
+
+    async function show(index) {
+      if (index < 0 || index >= state.rows.length) return;
+      state.current = index;
+      const row = state.rows[index];
+      nodes.paper.value = row.source;
+      nodes.item.innerHTML = '';
+      state.rows.forEach((entry, i) => {
+        if (entry.source !== row.source) return;
+        const option = document.createElement('option');
+        option.value = String(i);
+        option.textContent = `第 ${entry.page} 页 · ${entry.label}`;
+        nodes.item.append(option);
+      });
+      nodes.item.value = String(index);
+      nodes.prev.disabled = index === 0;
+      nodes.next.disabled = index === state.rows.length - 1;
+      nodes.status.textContent = `${index + 1} / ${state.rows.length}`;
+      nodes.error.textContent = '';
+      nodes.meta.textContent = `${row.source} · 第 ${row.page} 页 · ${row.label} · ${row.pixels.join(' × ')} px`;
+      nodes['page-meta'].textContent = `PDF 坐标：${row.box_points.join(', ')}`;
+      const cropUrl = fileUrl(row.file);
+      nodes.crop.src = cropUrl;
+      nodes['image-link'].href = cropUrl;
+
+      try {
+        if (state.renderTask) {
+          state.renderTask.cancel();
+          try { await state.renderTask.promise; } catch { /* previous render cancelled */ }
+          state.renderTask = null;
+        }
+        if (state.pdfSource !== row.source) {
+          if (state.loadingTask) await state.loadingTask.destroy();
+          const response = await fetch(fileUrl(`downloads/${row.source}`));
+          if (!response.ok) throw new Error(`无法读取原 PDF：HTTP ${response.status}`);
+          state.loadingTask = pdfjs.getDocument({ data: new Uint8Array(await response.arrayBuffer()) });
+          state.pdf = await state.loadingTask.promise;
+          state.pdfSource = row.source;
+        }
+        const page = await state.pdf.getPage(row.page);
+        if (state.rows[state.current] !== row) return;
+        const natural = page.getViewport({ scale: 1 });
+        const parentWidth = nodes.page.parentElement.clientWidth - 24;
+        const scale = Math.min(2, Math.max(0.8, parentWidth / natural.width));
+        const viewport = page.getViewport({ scale });
+        const canvas = nodes.page;
+        canvas.width = Math.ceil(viewport.width);
+        canvas.height = Math.ceil(viewport.height);
+        state.renderTask = page.render({ canvasContext: canvas.getContext('2d', { alpha: false }), viewport });
+        await state.renderTask.promise;
+        state.renderTask = null;
+        if (state.rows[state.current] !== row) return;
+        const [x0, y0, x1, y1] = row.box_points;
+        const context = canvas.getContext('2d');
+        context.strokeStyle = '#eb6a0a';
+        context.lineWidth = 2.5;
+        context.strokeRect(x0 * scale, y0 * scale, (x1 - x0) * scale, (y1 - y0) * scale);
+      } catch (error) {
+        if (state.rows[state.current] === row) nodes.error.textContent = String(error.message || error);
+      }
+    }
+
+    nodes.paper.addEventListener('change', () => show(state.rows.findIndex(row => row.source === nodes.paper.value)));
+    nodes.item.addEventListener('change', () => show(Number(nodes.item.value)));
+    nodes.prev.addEventListener('click', () => show(state.current - 1));
+    nodes.next.addEventListener('click', () => show(state.current + 1));
+
+    try {
+      const response = await fetch(manifestUrl);
+      if (!response.ok) throw new Error(`无法读取验证清单：HTTP ${response.status}`);
+      state.rows = await response.json();
+      state.rows.sort((a, b) => a.source.localeCompare(b.source) || a.page - b.page || a.label.localeCompare(b.label, undefined, { numeric: true }));
+      state.papers = [...new Set(state.rows.map(row => row.source))];
+      state.papers.forEach(source => {
+        const option = document.createElement('option');
+        option.value = source;
+        option.textContent = source;
+        nodes.paper.append(option);
+      });
+      if (state.rows.length) await show(0);
+      else nodes.error.textContent = '验证清单为空。';
+    } catch (error) {
+      nodes.error.textContent = `${error.message || error}\n请从本项目根目录运行 npm run dev，并确认 output/figure-validation/manifest.json 存在。`;
+    }
+  </script>
+</body>
+</html>
