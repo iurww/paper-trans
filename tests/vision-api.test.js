@@ -53,6 +53,20 @@ test('omits table cells while retaining metadata and references only in their or
     [{ kind: 'reference', original: '[2] Citation', chinese: '' }]);
   assert.deepEqual(parseVisualPage('{"paragraphs":[{"kind":"equation","original":"$$x=1 \\\\tag{9}$$","chinese":""}]}'),
     [{ kind: 'equation', original: '$$x=1 \\tag{9}$$', chinese: '' }]);
+  assert.deepEqual(parseVisualPage('{"paragraphs":[{"kind":"footnote","original":"See note.","chinese":"见注释。"}]}'),
+    [{ kind: 'footnote', original: 'See note.', chinese: '见注释。' }]);
+});
+
+test('drops segments that lack a translation without discarding the rest of the page', () => {
+  assert.deepEqual(parseVisualPage(JSON.stringify({ paragraphs: [
+    { kind: 'paragraph', original: 'First sentence.', chinese: '第一句。' },
+    { kind: 'paragraph', original: 'Missing translation.', chinese: '' },
+    { kind: 'caption', original: 'Figure 1.', chinese: '图 1。' },
+    { original: 'No chinese field' },
+  ] })), [
+    { kind: 'paragraph', original: 'First sentence.', chinese: '第一句。' },
+    { kind: 'caption', original: 'Figure 1.', chinese: '图 1。' },
+  ]);
 });
 
 test('increases output allowance after truncated page JSON and counts both requests', async () => {

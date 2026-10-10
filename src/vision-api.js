@@ -13,15 +13,16 @@ export function parseVisualPage(content) {
   const parsed = parseContent(content);
   if (!Array.isArray(parsed?.paragraphs)) return null;
   const paragraphs = [];
+  let invalid = 0;
   for (const item of parsed.paragraphs) {
     if (omitVisualItem(item)) continue;
-    if (!item || typeof item.original !== 'string') return null;
-    const metadata = isOriginalOnlyVisualItem(item) || item.kind === 'equation';
-    if (!metadata && typeof item.chinese !== 'string') return null;
-    const original = item.original.trim(), chinese = metadata ? '' : item.chinese.trim();
-    if (!original || (!metadata && !chinese)) return null;
+    const metadata = isOriginalOnlyVisualItem(item) || item?.kind === 'equation';
+    const original = typeof item?.original === 'string' ? item.original.trim() : '';
+    const chinese = metadata || typeof item?.chinese !== 'string' ? '' : item.chinese.trim();
+    if (!original || (!metadata && !chinese)) { invalid++; continue; }
     paragraphs.push({ kind: kinds.has(item.kind) ? item.kind : 'paragraph', original, chinese });
   }
+  if (!paragraphs.length && invalid) return null;
   return paragraphs;
 }
 
