@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { ActionIcon, Alert, Button, Loader, SegmentedControl } from '@mantine/core';
 import { useMediaQuery } from '@mantine/hooks';
 import { Download, FileJson, FileText, PanelLeftClose, PanelLeftOpen, RotateCcw, ZoomIn, ZoomOut } from 'lucide-react';
@@ -10,10 +10,12 @@ import { getPdfPageInfo, runVisualTranslation } from '../translation/vision-tran
 import { visibleVisualPages } from '../translation/visual-content.js';
 import { alignmentInputs, exportAlignment, highlightRanges, separatorAlignment } from '../alignment/sentence-alignment.js';
 import { highlightSentence } from './sentence-highlight.js';
+import { saveBlob } from '../platform/desktop.js';
 
 const ignoreSentence = () => {};
+const readingFontSizes = { original: 15, chinese: 16, title: 22, heading: 18, small: 14 };
 
-function VisualParagraph({ paragraph, index, alignment, onSentenceHover }) {
+const VisualParagraph = memo(function VisualParagraph({ paragraph, index, alignment, onSentenceHover }) {
   const { original, chinese } = displayParagraphText(paragraph);
   const fallback = alignment?.paragraphs?.find(item => item.paragraph === index)?.granularity === 'paragraph';
   return <article className={`visual-paragraph visual-${paragraph.kind}`} title={fallback ? '整段对照' : undefined}>
@@ -22,17 +24,27 @@ function VisualParagraph({ paragraph, index, alignment, onSentenceHover }) {
     {chinese && <div className="visual-chinese"><LatexText text={chinese}
       ranges={highlightRanges(alignment, index, 'chinese')} onSentenceHover={onSentenceHover} /></div>}
   </article>;
-}
+});
 
-export default function VisionReader({ document, settings, sidebarCollapsed, onToggleSidebar, onOpenTasks, onModeChange }) {
+export default memo(function VisionReader({ document, settings, sidebarCollapsed, onToggleSidebar, onOpenTasks, onModeChange }) {
   const mobile = useMediaQuery('(max-width: 760px)');
   const [pages, setPages] = useState([]);
   const [pageError, setPageError] = useState('');
   const [sidePages, setSidePages] = useState({ original: 1, translated: 1 });
   const [activePage, setActivePage] = useState(1);
   const [scale, setScale] = useState(1);
+  const readingStyle = useMemo(() => {
+    const style = {};
+    for (const [kind, base] of Object.entries(readingFontSizes)) {
+      const size = Math.round(base * scale);
+      style[`--reading-${kind}-size`] = `${size}px`;
+      style[`--reading-${kind}-line-height`] = `${Math.round(size * 1.75)}px`;
+    }
+    return style;
+  }, [scale]);
   const [mobileView, setMobileView] = useState('translated');
   const [latexTarget, setLatexTarget] = useState(null);
+  const [exportError, setExportError] = useState('');
   const closeLatex = useCallback(() => setLatexTarget(null), []);
   const openLatex = event => {
     const element = event.target.closest?.('[data-latex]');
@@ -65,7 +77,8 @@ export default function VisionReader({ document, settings, sidebarCollapsed, onT
   useEffect(() => { void runVisualTranslation(document.id, settings?.visionKey, { retry: Boolean(settings?.visionKey) }); }, [document.id, settings?.visionKey]);
 
   const updatePage = useCallback((version, root) => {
-    const first = [...root.querySelectorAll('.pdf-page, .visual-page')].find(page => page.getBoundingClientRect().bottom > root.getBoundingClientRect().top + 40);
+    const top = root.getBoundingClientRect().top + 40;
+    const first = [...root.querySelectorAll('.pdf-page, .visual-page')].find(page => page.getBoundingClientRect().bottom > top);
     if (!first) return;
     const number = Number(first.dataset.page);
     if (!number) return;
@@ -75,15 +88,14 @@ export default function VisionReader({ document, settings, sidebarCollapsed, onT
     }
   }, []);
 
-  const downloadJson = (sentences = false) => {
+  const downloadJson = async (sentences = false) => {
     const payload = sentences ? exportAlignment(document.visualPages || [], alignedPages)
       : { pages: (document.visualPages || []).filter(Boolean).map(page => ({ page: page.number, paragraphs: page.paragraphs })) };
-    const url = URL.createObjectURL(new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' }));
-    const link = window.document.createElement('a');
-    link.href = url;
-    link.download = `${document.filename.replace(/\.pdf$/i, '')}-${sentences ? 'sentence-alignment' : 'visual-translation'}.json`;
-    link.click();
-    setTimeout(() => URL.revokeObjectURL(url), 1000);
+    setExportError('');
+    try {
+      await saveBlob(new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' }),
+        `${document.filename.replace(/\.pdf$/i, '')}-${sentences ? 'sentence-alignment' : 'visual-translation'}.json`);
+    } catch (error) { setExportError(`保存 JSON 失败：${error.message || error}`); }
   };
 
   return <div className="reader vision-reader">
@@ -106,13 +118,14 @@ export default function VisionReader({ document, settings, sidebarCollapsed, onT
     </header>
     <div className="reader-workspace">
       {pageError && <Alert color="red">PDF 无法打开：{pageError}</Alert>}
+      {exportError && <Alert color="red" withCloseButton onClose={() => setExportError('')}>{exportError}</Alert>}
       {document.visualStatus === 'error' && <Alert color="red" className="vision-error">{document.visualError}<Button ml="sm" size="compact-sm" variant="white" onClick={() => runVisualTranslation(document.id, settings?.visionKey, { retry: true })}>重试未完成页</Button></Alert>}
       <div className="mobile-view-switch"><SegmentedControl value={mobileView} onChange={setMobileView}
         data={[{ label: 'PDF 原件', value: 'original' }, { label: '逐段对照', value: 'translated' }]} fullWidth size="xs" color="teal" /></div>
       <div className={`vision-spread mobile-${mobileView}`}>
         <PdfPane version="original" blob={originalBlob} pages={pages} scale={scale} scrollRef={originalRef}
           onScroll={updatePage} onSentenceOpen={ignoreSentence} onSentenceHover={ignoreSentence} mobile={mobile} />
-        <div ref={translatedRef} className="visual-scroll" style={{ '--reading-scale': scale }} onClick={openLatex} onKeyDown={openLatex} onScroll={event => updatePage('translated', event.currentTarget)}>
+        <div ref={translatedRef} className="visual-scroll" style={readingStyle} onClick={openLatex} onKeyDown={openLatex} onScroll={event => updatePage('translated', event.currentTarget)}>
           <div className="visual-progress">已完成 {(document.visualPages || []).filter(Boolean).length} / {pages.length || '…'} 页
             {document.visualActivePage && document.visualPages?.[document.visualActivePage - 1] ? ` · 正在重新识别第 ${document.visualActivePage} 页` : ''}
             {document.visualTokens?.total ? ` · ${document.visualTokens.total} token` : ''}</div>
@@ -139,4 +152,4 @@ export default function VisionReader({ document, settings, sidebarCollapsed, onT
     </div>
     {latexTarget && <LatexSourcePopup key={latexTarget.source} target={latexTarget} onClose={closeLatex} />}
   </div>;
-}
+});

@@ -14,9 +14,10 @@ export default memo(function PdfPane({ version, blob, pages, scale, scrollRef, o
       setVisible(previous => {
         let changed = false;
         const next = new Set(previous);
-        for (const entry of entries) if (entry.isIntersecting) {
+        for (const entry of entries) {
           const number = Number(entry.target.dataset.page);
-          if (!next.has(number)) { next.add(number); changed = true; }
+          if (entry.isIntersecting && !next.has(number)) { next.add(number); changed = true; }
+          else if (!entry.isIntersecting && next.delete(number)) changed = true;
         }
         return changed ? next : previous;
       });

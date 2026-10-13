@@ -28,14 +28,21 @@ export default memo(function PdfPage({ page, pdf, version, scale, visible, onSen
   }, []);
 
   useEffect(() => {
-    if (!visible || !pdf || !width || rendered.current?.pdf === pdf && rendered.current?.width === width) return;
-    let cancelled = false;
+    const controller = new AbortController();
     renderQueue.current = renderQueue.current.catch(() => {}).then(async () => {
-      if (cancelled || !canvasRef.current) return;
-      await renderPage(pdf, page.number, canvasRef.current, width);
-      if (!cancelled) { rendered.current = { pdf, width }; setError(''); }
-    }).catch(error => { if (!cancelled) setError(error.message); });
-    return () => { cancelled = true; };
+      const canvas = canvasRef.current;
+      if (controller.signal.aborted || !canvas) return;
+      if (!visible) {
+        canvas.width = 0;
+        canvas.height = 0;
+        rendered.current = null;
+        return;
+      }
+      if (!pdf || !width || rendered.current?.pdf === pdf && rendered.current?.width === width) return;
+      await renderPage(pdf, page.number, canvas, width, { signal: controller.signal });
+      if (!controller.signal.aborted) { rendered.current = { pdf, width }; setError(''); }
+    }).catch(error => { if (!controller.signal.aborted) setError(error.message); });
+    return () => { controller.abort(); };
   }, [visible, pdf, width, page.number]);
 
   return <div ref={paperRef} className="pdf-page" data-page={page.number}

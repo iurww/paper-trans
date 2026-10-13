@@ -1,4 +1,5 @@
 import { parseContent, request, RetryableTranslationError, TranslationConfigurationError } from './translation-api.js';
+import { apiFetch } from '../platform/desktop.js';
 import { isOriginalOnlyVisualItem, omitVisualItem } from './visual-content.js';
 
 export const DEEPSEEK_VISION_ENDPOINT = 'https://api.deepseek.com/chat/completions';
@@ -92,7 +93,7 @@ async function translateInChunks(imageUrl, key, usage, fetchImpl, sleep, thinkin
   throw error;
 }
 
-export async function translateVisualPage(imageUrl, key, { fetchImpl = fetch, sleep, thinking = DEFAULT_VISION_THINKING } = {}) {
+export async function translateVisualPage(imageUrl, key, { fetchImpl = apiFetch, sleep, thinking = DEFAULT_VISION_THINKING } = {}) {
   if (!['enabled', 'disabled'].includes(thinking)) throw new TranslationConfigurationError('无效的视觉模型思考模式');
   if (!key) throw new TranslationConfigurationError('请先在 API 设置中填写 DeepSeek API Key');
   const usage = { prompt_tokens: 0, completion_tokens: 0, total_tokens: 0 };

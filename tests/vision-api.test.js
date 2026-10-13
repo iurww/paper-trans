@@ -13,12 +13,12 @@ test('sends the PDF screenshot to DeepSeek and preserves original and Chinese La
     assert.deepEqual(body.response_format, { type: 'json_object' });
     assert.equal(body.messages[0].content[1].image_url.url, image);
     assert.equal(body.messages[0].content[1].image_url.detail, 'original');
-    assert.match(body.messages[0].content[0].text, /Do not transcribe, translate, summarize, or output ANY content inside a table/);
-    assert.match(body.messages[0].content[0].text, /Include author names, author affiliations/);
-    assert.match(body.messages[0].content[0].text, /set chinese to an empty string/);
-    assert.match(body.messages[0].content[0].text, /KaTeX-compatible LaTeX syntax/);
-    assert.match(body.messages[0].content[0].text, /Never put \\tag outside/);
-    assert.match(body.messages[0].content[0].text, /Include the References\/Bibliography heading and every bibliography entry/);
+    assert.match(body.messages[0].content[0].text, /Skip table contents, printed page numbers and running headers/);
+    assert.match(body.messages[0].content[0].text, /Transcribe authors, affiliations, contact information/);
+    assert.match(body.messages[0].content[0].text, /only in original, with chinese=""/);
+    assert.match(body.messages[0].content[0].text, /KaTeX-compatible LaTeX/);
+    assert.match(body.messages[0].content[0].text, /never place \\tag outside/);
+    assert.match(body.messages[0].content[0].text, /the References\/Bibliography heading and bibliography entries/);
     return { ok: true, json: async () => ({ choices: [{ message: { content: JSON.stringify({ paragraphs }) } }], usage: { total_tokens: 25 } }) };
   }, sleep: async () => {} });
   assert.deepEqual(result.paragraphs, paragraphs);

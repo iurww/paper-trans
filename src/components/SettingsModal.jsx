@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Button, Modal, PasswordInput, Stack, Text, TextInput } from '@mantine/core';
 
-export default function SettingsModal({ opened, onClose, settings, onSave }) {
+export default function SettingsModal({ opened, onClose, settings, onSave, lockScroll = true }) {
   const [draft, setDraft] = useState(settings);
   useEffect(() => { if (opened) setDraft(settings); }, [opened, settings]);
   const update = (field, value) => setDraft(current => ({ ...current, [field]: value }));
@@ -9,7 +9,7 @@ export default function SettingsModal({ opened, onClose, settings, onSave }) {
     event.preventDefault();
     onSave({ endpoint: draft.endpoint.trim(), model: draft.model.trim(), key: draft.key.trim(), visionKey: draft.visionKey?.trim() || '' });
   };
-  return <Modal opened={opened} onClose={onClose} title="翻译 API 设置" centered size="md" overlayProps={{ backgroundOpacity: .55 }}>
+  return <Modal lockScroll={lockScroll} opened={opened} onClose={onClose} title="翻译 API 设置" centered size="md" overlayProps={{ backgroundOpacity: .55 }}>
     <form onSubmit={submit}>
       <Stack gap="md">
         <Text size="sm" c="dimmed">请求从当前设备直连。密钥只保存在本机浏览器或应用存储中。</Text>

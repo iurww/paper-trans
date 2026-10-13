@@ -1,10 +1,12 @@
+import { apiFetch } from '../platform/desktop.js';
+
 export class RetryableTranslationError extends Error {}
 export class TranslationConfigurationError extends Error {}
 
 const pause = milliseconds => new Promise(resolve => setTimeout(resolve, milliseconds));
 const retryableStatus = status => status === 408 || status === 409 || status === 425 || status === 429 || status >= 500;
 
-export async function request(messages, settings, fetchImpl = fetch, sleep = pause) {
+export async function request(messages, settings, fetchImpl = apiFetch, sleep = pause) {
   let lastError;
   for (let attempt = 0; attempt < 3; attempt++) {
     try {
@@ -96,7 +98,7 @@ async function resolveGroup(lines, settings, onResult, fetchImpl, sleep) {
   if (middle < missing.length) await resolveGroup(missing.slice(middle), settings, onResult, fetchImpl, sleep);
 }
 
-export async function translateBatch(lines, settings, onResult, { fetchImpl = fetch, sleep = pause } = {}) {
+export async function translateBatch(lines, settings, onResult, { fetchImpl = apiFetch, sleep = pause } = {}) {
   const remaining = lines.filter(line => !line.translation);
   if (remaining.length) await resolveGroup(remaining, settings, onResult, fetchImpl, sleep);
 }

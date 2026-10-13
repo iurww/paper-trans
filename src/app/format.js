@@ -1,3 +1,5 @@
+import { saveBlob } from '../platform/desktop.js';
+
 export const label = document => document.filename.replace(/\.pdf$/i, '');
 export const status = document => document.mode === 'visual' ? ({
   done: '视觉识别完成', working: '视觉识别中', error: '视觉识别失败',
@@ -13,10 +15,5 @@ export const tokenSummary = document =>
 
 export function downloadTranslation(document) {
   if (!document?.translated) return;
-  const url = URL.createObjectURL(document.translated);
-  const link = window.document.createElement('a');
-  link.href = url;
-  link.download = `${label(document)}-译文.pdf`;
-  link.click();
-  setTimeout(() => URL.revokeObjectURL(url), 30000);
+  return saveBlob(document.translated, `${label(document)}-译文.pdf`);
 }

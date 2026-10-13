@@ -7,13 +7,19 @@ import { groupParagraphs, layoutParagraph } from './paragraphs.js';
 pdfjs.GlobalWorkerOptions.workerSrc = workerUrl;
 
 function loadPdf(bytes) {
+  const resourceUrl = directory => new URL(`${import.meta.env.BASE_URL}pdfjs/${directory}/`, document.baseURI).href;
   return pdfjs.getDocument({
     data: bytes.slice(),
-    wasmUrl: new URL(`${import.meta.env.BASE_URL}pdfjs/wasm/`, document.baseURI).href,
+    wasmUrl: resourceUrl('wasm'),
+    cMapUrl: resourceUrl('cmaps'),
+    cMapPacked: true,
+    standardFontDataUrl: resourceUrl('standard_fonts'),
+    iccUrl: resourceUrl('iccs'),
   });
 }
 
 const heading = /^(?:references|bibliography|literature cited|参考文献)\s*$/i;
+const appendixHeading = /^(?:appendix|appendices)\b|^附录/i;
 const caption = /^(?:fig(?:ure)?\.?|table|图|表)\s*[\dIVX]+[\s.:：-]/i;
 const note = /^(?:notes?|source|footnotes?|注(?:释)?|来源)\s*[:：.]|^[*†‡]\s+\S/i;
 const math = /[=∑∫√≈≠≤≥∞∂∇∏∈∉⊂⊆→←↔±×÷∝α-ωΑ-Ω]|[\u{1D400}-\u{1D7FF}]|\$|\\(?:begin|end|frac|sum|int|label|tag|ref|eqref|\[|\(|\{|[A-Za-z])|[A-Za-z][_^][{(]?[A-Za-z0-9]/u;
@@ -27,10 +33,11 @@ function bounds(items, height) {
   return [x0, y0, x1, y1];
 }
 
-function classify(lines, width, state, pageNumber) {
+export function classifyLines(lines, width, state, pageNumber) {
   let tableUntil = -1;
   return lines.map(line => {
     const text = line.source;
+    if (appendixHeading.test(text)) state.references = false;
     if (heading.test(text)) state.references = true;
     if (/^table\s*[\dIVX]+[\s.:：-]/i.test(text)) tableUntil = line.rect[3] + 170;
     const inTable = line.rect[1] < tableUntil && !caption.test(text) && !note.test(text);
@@ -80,7 +87,7 @@ export async function readPdf(bytes) {
       const source = line.items.map(item => item.str).join(' ').replace(/\s+/g, ' ').trim();
       return { source, rect: bounds(line.items, viewport.height), fontSize: Math.max(6, Math.min(16, Math.max(...line.items.map(item => item.height)))), items: line.items };
     });
-    const classified = classify(normalized, viewport.width, classification, number).map(({ items: _items, ...line }) => line);
+    const classified = classifyLines(normalized, viewport.width, classification, number).map(({ items: _items, ...line }) => line);
     pages.push({ number, width: viewport.width, height: viewport.height,
       blocks: groupParagraphs(classified, viewport.width, number) });
   }
@@ -88,8 +95,9 @@ export async function readPdf(bytes) {
   return pages;
 }
 
-export async function renderPage(pdf, number, canvas, cssWidth) {
+export async function renderPage(pdf, number, canvas, cssWidth, { signal } = {}) {
   const page = await pdf.getPage(number);
+  signal?.throwIfAborted();
   const base = page.getViewport({ scale: 1 });
   const cssScale = cssWidth / base.width;
   const pixelRatio = Math.min(window.devicePixelRatio || 1, 3);
@@ -98,7 +106,11 @@ export async function renderPage(pdf, number, canvas, cssWidth) {
   canvas.height = Math.round(viewport.height);
   canvas.style.width = `${Math.round(base.width * cssScale)}px`;
   canvas.style.height = `${Math.round(base.height * cssScale)}px`;
-  await page.render({ canvasContext: canvas.getContext('2d', { alpha: false }), viewport }).promise;
+  const task = page.render({ canvasContext: canvas.getContext('2d', { alpha: false }), viewport });
+  const cancel = () => task.cancel();
+  signal?.addEventListener('abort', cancel, { once: true });
+  try { await task.promise; }
+  finally { signal?.removeEventListener('abort', cancel); }
 }
 
 export const openPdf = bytes => loadPdf(bytes).promise;

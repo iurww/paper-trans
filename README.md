@@ -22,6 +22,55 @@ uv run python tools/verify_font.py
 
 `uv sync` 会生成或使用 `uv.lock`，并在 `.venv` 安装开发依赖。新增 Python 工具时也统一使用 `uv`，不使用 `pip` 或手动创建虚拟环境。
 
+## Linux 桌面版（Tauri 2）
+
+Linux 桌面版复用 React 阅读器，使用系统 WebKitGTK，不随应用附带 Chromium 或 Node.js 运行时。当前仅配置 Linux 的 `.deb` 和 AppImage 打包。
+
+开发机需要 Node.js/npm、Rust/Cargo、C/C++ 构建工具、`pkg-config`、GTK 3、WebKitGTK 4.1、OpenSSL 和 librsvg。发行版安装命令见 [Tauri 官方前置要求](https://v2.tauri.app/start/prerequisites/)。Manjaro/Arch 可使用：
+
+```bash
+sudo pacman -S --needed base-devel rust webkit2gtk-4.1 openssl librsvg
+npm ci
+npm run linux:dev
+```
+
+开发服务器固定使用 `127.0.0.1:1420`，端口占用时会报错。打包命令：
+
+```bash
+npm run linux:build
+```
+
+产物位于 `src-tauri/target/release/bundle/deb/` 和 `src-tauri/target/release/bundle/appimage/`，独立可执行文件位于 `src-tauri/target/release/paperlens`。AppImage 需设置执行权限；系统缺少 FUSE 时可尝试 `./PaperLens_0.1.0_amd64.AppImage --appimage-extract-and-run`。`.deb` 使用系统运行库，包体更小；AppImage 携带较多运行库，体积更大。
+
+桌面版通过 Tauri 原生 HTTP 插件发送翻译请求，不受浏览器 CORS 限制；支持用户配置的 HTTP/HTTPS 地址。导出 PDF 和 JSON 时使用系统保存对话框，仅写入用户选中的文件。PDF 解析、识别截图与公式显示仍由现有前端完成。
+
+本阶段保留 IndexedDB 文档存储和 localStorage 设置存储，数据保存在桌面应用自己的 WebView 数据目录，与浏览器和 Android 的记录独立；API Key 暂未迁移到系统密钥环。退出应用会停止正在进行的请求，重新打开论文后按已保存进度恢复。不要删除应用数据目录；重要结果请导出备份。
+
+本机构建用于当前 Linux 环境试用。Manjaro 上生成的安装包尚不保证能在旧版 Ubuntu/Debian 上运行；正式跨发行版发布应在最低支持的发行版上构建，并验证 WebKitGTK、glibc、X11/Wayland 和 PDF.js 的兼容性。
+
+在 NVIDIA + Wayland 环境下，启动时默认设置 `__NV_DISABLE_EXPLICIT_SYNC=1`，规避显式同步相关的协议错误，同时保留 WebKitGTK 的快速渲染路径；已有同名环境变量时不会覆盖，使用 `GDK_BACKEND=x11` 时也不会设置。其他环境保持默认渲染设置。若特定驱动仍出现白屏、GBM 缓冲创建失败或 `Error 71`，可手动用 `WEBKIT_DISABLE_DMABUF_RENDERER=1` 启动作为兼容回退，但这会影响动画和大文档的图形性能。背景与说明见 [Tauri Linux 图形问题文档](https://v2.tauri.app/develop/debug/linux-graphics/)。
+
+### GitHub CI/CD 与版本发布
+
+普通分支推送和 Pull Request 会运行测试及前端构建。推送 `v` 开头的标签后，`.github/workflows/release-linux.yml` 会在 Ubuntu 22.04 上测试、构建 Linux x86_64 的 `.deb` 和 AppImage，并发布到该标签对应的 GitHub Release，附带 `SHA256SUMS` 校验文件。构建失败时不会创建 Release；上传完整后才公开新建的 Release。安装包同时保留为 Actions Artifact，保留 14 天。
+
+支持 `vMAJOR.MINOR` 和 `vMAJOR.MINOR.PATCH`，例如 `v0.2` 对应应用版本 `0.2.0`，`v0.2.1` 对应 `0.2.1`。推荐使用三段版本号。不支持前导零、预发布后缀或其他标签格式；不符合规则的 `v*` 标签会直接报错。CI 以标签为版本来源，自动同步 `package.json`、`package-lock.json`、Tauri 配置、Cargo 清单及锁文件，不会把 CI 中的版本修改提交回仓库。
+
+本地可先同步版本并提交，使源码版本与标签一致：
+
+```bash
+npm run release:version -- v0.2.0
+git add package.json package-lock.json src-tauri/tauri.conf.json src-tauri/Cargo.toml src-tauri/Cargo.lock
+git commit -m "chore: release v0.2.0"
+git tag -a v0.2.0 -m "PaperLens v0.2.0"
+git push origin HEAD
+git push origin v0.2.0
+```
+
+首次发布前，需要将 Tauri 源码、锁文件和 `.github/workflows/` 一起提交到被打标签的版本。版本已提交时，也可直接打标签并推送；CI 会自动设置安装包版本。发布后使用新标签发布下一版，不移动已有标签。失败后可在 GitHub Actions 中重新运行；重复运行会覆盖同标签下的同名安装包。
+
+工作流使用 GitHub 自带的 `GITHUB_TOKEN` 创建 Release，无需配置模型 API Key 或额外发布令牌。仓库需允许 GitHub Actions 运行，组织策略也需允许工作流的 `contents: write` 权限。这里只发布安装包，尚未实现应用内自动更新。
+
 ## Android
 
 安装 Android SDK 和 JDK 21 后运行：
@@ -38,6 +87,7 @@ ANDROID_HOME=/path/to/Android/Sdk ./gradlew assembleDebug
 
 - 桌面网页左右连续显示整篇原文和译文。无论光标位置，滚轮都会同步滚动两侧；拖动某一侧的滚动条可单独定位该侧。中间箭头可将另一侧对齐到当前侧。左侧任务列表可折叠，阅读栏只显示当前页数、总页数和缩放按钮。
 - PDF.js 根据实际显示宽度与设备像素密度渲染可见页面，放大后重新渲染，不使用固定分辨率的 PNG。
+- PDF.js 的 WASM 解码器、CMap 字符映射、标准备用字体和 ICC 配置随应用一起打包，开发服务器与安装包使用相同资源路径，不依赖在线字体/CDN。
 - 文本提取阶段跳过检测到的公式、表格内容、图内短标签和参考文献；图表标题与 `Note`、`Source` 等脚注会翻译。PDF 中的图像和未覆盖内容保留原貌。识别是基于 PDF 的文字与位置线索，复杂无框表格和非常规公式仍需人工核对。
 - PDF 通常只包含公式排版后的字形，不含原始 LaTex 源码。软件保留检测到的行内与行间公式在原 PDF 中的视觉样式，不将它们转换为普通文本。
 - 同时只运行一个翻译任务，最多接纳三个待处理任务。正文先按原文段落分组，再按句翻译；译文在原段落宽度内连续排版，两侧按句对应。每次 API 响应都会保存已完成译文与 Token 用量；若批量响应漏掉个别句子，会自动补译。网络中断、限流或暂时性接口故障会自动重试，重新打开页面后继续处理。每篇论文显示进度和 API 返回的输入、输出及总 Token 数。
@@ -58,6 +108,12 @@ ANDROID_HOME=/path/to/Android/Sdk ./gradlew assembleDebug
 旧记录已有且仍匹配的句级映射继续使用；没有分隔符或映射的旧段落使用整段对应。可点击「重新识别当前页」通过新的图片翻译生成分隔符。逐段 JSON 下载保留分隔符；句级对照 JSON 下载包含去掉分隔符后的显示文本快照、句子范围及 `links`，整段回退项标注 `granularity: "paragraph"`。无中文对应的作者、参考文献及独立公式不参与句级配对。
 
 常规模式不会自动 OCR。译文过长时可能超出原段落，可双击句子查看完整译文。旧版已完成的逐行译文可在左侧任务列表点击“按句重译”；这会重新请求 API 并产生新的 Token 用量。
+
+### PDF 内容缺失排查
+
+左侧原件视图渲染上传文件的完整页面，不会按翻译规则隐藏正文、图表或参考文献。若左右两侧都只有少量图注，请先在独立 PDF 阅读器中打开实际上传的文件，核对完整文件名与页数。文件名包含 `figures_only` 等标记的图表摘录通常没有论文正文，需要重新导入完整论文；重新识别无法恢复源文件中不存在的内容。
+
+常规模式只翻译可提取文字的正文等内容，参考文献保留原样；遇到 `Appendix`、`Appendices` 或“附录”标题后会退出参考文献过滤，继续处理附录。纯图片 PDF 应选择纯视觉识别模式。已有常规翻译记录若漏掉附录，需要重新翻译才能生成更新后的结果。
 
 ### 视觉句级协议实测
 

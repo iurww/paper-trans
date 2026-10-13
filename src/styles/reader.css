@@ -1,3 +1,5 @@
+/* Reuse the bundled PDF export font for consistent Chinese and Latin glyphs. */
+@font-face{font-family:PaperLensReading;src:url('/fonts/NotoSansSC-Regular.ttf') format('truetype');font-style:normal;font-weight:400;font-display:swap}
 .reader{height:100%;min-height:0;display:flex;flex-direction:column}
 .reader-toolbar{height:43px;min-height:43px;padding:0 12px;position:relative;display:flex;align-items:center;justify-content:space-between;background:#fff;border-bottom:1px solid #e9eeea}
 .reader-mode-switch{margin-left:12px}
@@ -21,22 +23,24 @@
 .mobile-view-switch{display:none}
 .popup-translation{font-size:17px;line-height:1.9;margin:8px 0 20px}
 .vision-spread{flex:1;min-height:0;display:grid;grid-template-columns:minmax(0,46fr) minmax(0,54fr);gap:6px}
-.visual-scroll{min-width:0;min-height:0;overflow:auto;overscroll-behavior:contain;background:#e7ebe7;padding:4px;border-radius:6px}
+/* Snap the accelerated scrolling pane to whole pixels instead of a fractional grid track. */
+@supports(width:round(nearest,10px,1px)){.vision-spread{grid-template-columns:minmax(0,round(nearest,calc((100% - 6px) * .46),1px)) minmax(0,1fr)}}
+.visual-scroll{font-family:PaperLensReading,system-ui,sans-serif;font-synthesis:weight style;min-width:0;min-height:0;overflow:auto;overscroll-behavior:contain;background:#e7ebe7;padding:4px;border-radius:6px}
 .visual-progress{width:100%;margin:0 0 4px;font-size:12px;color:#617b6b;padding:2px 6px}
-.visual-page{width:100%;margin:0 0 8px;padding:14px 16px;background:white;box-shadow:0 2px 8px #425b4820;border-radius:3px}
+.visual-page{content-visibility:auto;contain-intrinsic-size:auto 1000px;width:100%;margin:0 0 8px;padding:14px 16px;background:white;box-shadow:0 2px 8px #425b4820;border-radius:3px}
 .visual-paragraph{padding:8px 0 11px;border-bottom:1px solid #edf1ed;line-height:1.75;overflow-wrap:anywhere}
 .visual-paragraph:last-child{border-bottom:0}
 .visual-original,.visual-chinese{white-space:pre-wrap}
 .visual-sentence{cursor:pointer;border-radius:2px;box-decoration-break:clone;-webkit-box-decoration-break:clone}
 .visual-sentence.active{background:#f3d87180;box-shadow:0 0 0 1px #d7ae2f55}
 .visual-sentence:focus-visible{outline:2px solid #237761;outline-offset:2px}
-.visual-original{font-size:calc(14px * var(--reading-scale));color:#394d42}
-.visual-chinese{font-size:calc(15px * var(--reading-scale));color:#172e24;margin-top:7px;padding-left:9px;border-left:3px solid #8fc7ad}
-.visual-title .visual-original,.visual-title .visual-chinese{font-size:calc(21px * var(--reading-scale));font-weight:700}
-.visual-heading .visual-original,.visual-heading .visual-chinese{font-size:calc(17px * var(--reading-scale));font-weight:650}
+.visual-original{font-size:var(--reading-original-size,15px);line-height:var(--reading-original-line-height,26px);color:#394d42}
+.visual-chinese{font-size:var(--reading-chinese-size,16px);line-height:var(--reading-chinese-line-height,28px);color:#172e24;margin-top:7px;padding-left:9px;border-left:3px solid #8fc7ad}
+.visual-title .visual-original,.visual-title .visual-chinese{font-size:var(--reading-title-size,22px);line-height:var(--reading-title-line-height,39px);font-weight:700}
+.visual-heading .visual-original,.visual-heading .visual-chinese{font-size:var(--reading-heading-size,18px);line-height:var(--reading-heading-line-height,32px);font-weight:650}
 .visual-title .visual-original,.visual-title .visual-chinese,.visual-heading .visual-original,.visual-heading .visual-chinese{display:inline;white-space:normal}
 .visual-title .visual-chinese,.visual-heading .visual-chinese{margin:0 0 0 12px;padding-left:10px}
-.visual-caption .visual-original,.visual-caption .visual-chinese,.visual-footnote .visual-original,.visual-footnote .visual-chinese,.visual-reference .visual-original,.visual-reference .visual-chinese{font-size:calc(13px * var(--reading-scale))}
+.visual-caption .visual-original,.visual-caption .visual-chinese,.visual-footnote .visual-original,.visual-footnote .visual-chinese,.visual-reference .visual-original,.visual-reference .visual-chinese{font-size:var(--reading-small-size,14px);line-height:var(--reading-small-line-height,25px)}
 .visual-pending,.visual-empty{display:flex;align-items:center;gap:9px;color:#71867a;font-size:13px;padding:18px 0}
 .vision-error{flex:none;margin-bottom:6px}
 .latex-display{display:block;overflow-x:auto;max-width:100%;margin:8px 0}

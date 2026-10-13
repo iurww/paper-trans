@@ -53,7 +53,10 @@ export default function App() {
     }
     setMode(value);
   }, [mode, selected]);
-  const download = useCallback(() => downloadTranslation(selected), [selected]);
+  const download = useCallback(async () => {
+    try { await downloadTranslation(selected); }
+    catch (error) { setNotice(`保存译文失败：${error.message || error}`); }
+  }, [selected]);
   const retranslate = useCallback(() => { if (selected) library.retry(selected.id); setDrawerOpen(false); }, [library.retry, selected]);
   const retry = useCallback(() => { if (selected) library.retry(selected.id); }, [library.retry, selected]);
   const handleSettingsSave = useCallback(next => {
@@ -94,16 +97,17 @@ export default function App() {
       event.currentTarget.value = '';
       if (file && await library.upload(file, uploadMode)) setMode(uploadMode);
     }} />
-    <Drawer opened={drawerOpen} onClose={() => setDrawerOpen(false)} position="right" size="min(360px, 88vw)" title="我的文献"
+    {/* Reading panes own scrolling; locking body forces WebKit to relayout the entire paper. */}
+    <Drawer lockScroll={!reading} opened={drawerOpen} onClose={() => setDrawerOpen(false)} position="right" size="min(360px, 88vw)" title="我的文献"
       styles={{ body: { padding: 0, height: 'calc(100% - 60px)' } }}>
       <TaskSidebar {...sidebarProps} mobile />
     </Drawer>
-    <Modal opened={uploadOpen} onClose={() => setUploadOpen(false)} title="选择翻译模式" centered size="sm">
+    <Modal lockScroll={!reading} opened={uploadOpen} onClose={() => setUploadOpen(false)} title="选择翻译模式" centered size="sm">
       <SegmentedControl value={uploadMode} onChange={setUploadMode} fullWidth color="teal"
         data={[{ label: '常规翻译', value: 'standard' }, { label: '纯视觉识别', value: 'visual' }]} />
       <Button fullWidth color="teal" mt="lg" onClick={() => { setUploadOpen(false); fileInput.current?.click(); }}>选择 PDF</Button>
     </Modal>
-    <SettingsModal opened={settingsOpen} onClose={() => setSettingsOpen(false)} settings={settings} onSave={handleSettingsSave} />
+    <SettingsModal lockScroll={!reading} opened={settingsOpen} onClose={() => setSettingsOpen(false)} settings={settings} onSave={handleSettingsSave} />
     {notice && <div className="notice"><Alert color="red" variant="filled">{notice}</Alert></div>}
   </div>;
 }

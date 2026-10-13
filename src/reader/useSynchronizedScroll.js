@@ -4,6 +4,8 @@ export function useSynchronizedScroll({ pageCount, overlayOpen, mobile, mobileVi
   const originalRef = useRef(null);
   const translatedRef = useRef(null);
   const activeVersion = useRef('original');
+  const pageFrame = useRef(0);
+  const pendingPages = useRef(new Map());
   const [sidePages, setSidePages] = useState({ original: 1, translated: 1 });
 
   const getPane = useCallback(version => version === 'translated' ? translatedRef.current : originalRef.current, []);
@@ -17,8 +19,15 @@ export function useSynchronizedScroll({ pageCount, overlayOpen, mobile, mobileVi
   const updatePage = useCallback((version, pane) => {
     if (!pane) return;
     activeVersion.current = version;
-    rememberPage(version, pane);
+    pendingPages.current.set(version, pane);
+    if (!pageFrame.current) pageFrame.current = requestAnimationFrame(() => {
+      pageFrame.current = 0;
+      for (const [side, element] of pendingPages.current) rememberPage(side, element);
+      pendingPages.current.clear();
+    });
   }, [rememberPage]);
+
+  useEffect(() => () => cancelAnimationFrame(pageFrame.current), []);
 
   const sync = useCallback((from, to) => {
     const source = getPane(from), target = getPane(to);
@@ -30,6 +39,8 @@ export function useSynchronizedScroll({ pageCount, overlayOpen, mobile, mobileVi
   }, [getPane, rememberPage, updatePage]);
 
   useEffect(() => {
+    let frame = 0;
+    let pending = null;
     const wheel = event => {
       if (event.ctrlKey || overlayOpen) return;
       const panes = [originalRef.current, translatedRef.current].filter(node => node?.getClientRects().length);
@@ -38,20 +49,27 @@ export function useSynchronizedScroll({ pageCount, overlayOpen, mobile, mobileVi
       const source = panes.includes(hovered) ? hovered : panes.find(node => node.dataset.version === activeVersion.current) || panes[0];
       const distance = event.deltaMode === 1 ? 16 : event.deltaMode === 2 ? window.innerHeight : 1;
       event.preventDefault();
-      source.scrollTop += event.deltaY * distance;
-      source.scrollLeft += event.deltaX * distance;
-      const vertical = source.scrollTop / Math.max(1, source.scrollHeight - source.clientHeight);
-      const horizontal = source.scrollLeft / Math.max(1, source.scrollWidth - source.clientWidth);
-      for (const target of panes) if (target !== source) {
-        target.scrollTop = vertical * Math.max(0, target.scrollHeight - target.clientHeight);
-        target.scrollLeft = horizontal * Math.max(0, target.scrollWidth - target.clientWidth);
-      }
-      rememberPage('original', originalRef.current);
-      rememberPage('translated', translatedRef.current);
-      activeVersion.current = source.dataset.version || activeVersion.current;
+      if (pending?.source !== source) pending = { source, x: 0, y: 0 };
+      pending.x += event.deltaX * distance;
+      pending.y += event.deltaY * distance;
+      if (frame) return;
+      frame = requestAnimationFrame(() => {
+        frame = 0;
+        const { source, x, y } = pending;
+        pending = null;
+        source.scrollTop += y;
+        source.scrollLeft += x;
+        const vertical = source.scrollTop / Math.max(1, source.scrollHeight - source.clientHeight);
+        const horizontal = source.scrollLeft / Math.max(1, source.scrollWidth - source.clientWidth);
+        for (const target of panes) if (target !== source) {
+          target.scrollTop = vertical * Math.max(0, target.scrollHeight - target.clientHeight);
+          target.scrollLeft = horizontal * Math.max(0, target.scrollWidth - target.clientWidth);
+        }
+        activeVersion.current = source.dataset.version || activeVersion.current;
+      });
     };
     window.addEventListener('wheel', wheel, { passive: false });
-    return () => window.removeEventListener('wheel', wheel);
+    return () => { window.removeEventListener('wheel', wheel); cancelAnimationFrame(frame); };
   }, [overlayOpen, rememberPage]);
 
   useEffect(() => {

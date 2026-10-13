@@ -6,8 +6,8 @@ import PdfPane from './PdfPane.jsx';
 import VisionReader from './VisionReader.jsx';
 import { useSynchronizedScroll } from './useSynchronizedScroll.js';
 
-export default memo(function Reader(props) {
-  return props.mode === 'visual' ? <VisionReader {...props} /> : <StandardReader {...props} />;
+export default memo(function Reader({ overlayOpen, ...props }) {
+  return props.mode === 'visual' ? <VisionReader {...props} /> : <StandardReader {...props} overlayOpen={overlayOpen} />;
 });
 
 function StandardReader({ document, sidebarCollapsed, onToggleSidebar, onOpenTasks, overlayOpen, onModeChange = () => {} }) {
@@ -57,7 +57,7 @@ function StandardReader({ document, sidebarCollapsed, onToggleSidebar, onOpenTas
           onScroll={updatePage} onSentenceOpen={setPopup} onSentenceHover={highlight} mobile={mobile} />
       </div>
     </div>
-    <Modal opened={Boolean(popup)} onClose={() => setPopup(null)} title="译文" centered size="md">
+    <Modal lockScroll={false} opened={Boolean(popup)} onClose={() => setPopup(null)} title="译文" centered size="md">
       <Text className="popup-translation">{popup?.translation}</Text>
       <details><summary>查看原文</summary><Text size="sm" c="dimmed" mt="sm">{popup?.source}</Text></details>
     </Modal>

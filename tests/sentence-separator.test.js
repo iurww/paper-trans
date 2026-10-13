@@ -73,18 +73,18 @@ test('thinking comparison is passed through the production screenshot request', 
       calls++;
       const body = JSON.parse(options.body);
       assert.deepEqual(body.thinking, { type: thinking });
-      assert.match(body.messages[0].content[0].text, /count\(original/);
+      assert.match(body.messages[0].content[0].text, /both fields must contain the same number of separators/);
       return { ok: true, json: async () => ({ choices: [{ message: { content: '{"paragraphs":[]}' } }] }) };
     } });
     assert.equal(calls, 1);
   }
 });
 
-test('normal visual translation uses the thinking mode selected by the live comparison', async () => {
+test('normal visual translation disables thinking by default', async () => {
   let calls = 0;
   await translateVisualPage('data:image/jpeg;base64,test', 'test', { fetchImpl: async (_url, options) => {
     calls++;
-    assert.deepEqual(JSON.parse(options.body).thinking, { type: 'enabled' });
+    assert.deepEqual(JSON.parse(options.body).thinking, { type: 'disabled' });
     return { ok: true, json: async () => ({ choices: [{ message: { content: '{"paragraphs":[]}' } }] }) };
   } });
   assert.equal(calls, 1);
