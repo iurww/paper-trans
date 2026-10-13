@@ -1,6 +1,6 @@
 # PaperLens 论文翻译工作台
 
-PaperLens 是纯前端的论文翻译工具。网页和 Android 应用均在当前设备解析、排版和保存 PDF，不需要后端或用户账号。用户在「API 设置」中填写自己的 OpenAI 兼容 Chat Completions 地址、模型和 API Key。待翻译的正文会直接发送到该 API；原 PDF、译文 PDF、翻译进度、Token 统计和密钥保存在当前浏览器或应用的本地存储中，不会同步到其他设备。
+PaperLens 是纯前端的论文翻译工具。网页、Linux/macOS 桌面版和 Android 应用均在当前设备解析、排版和保存 PDF，不需要后端或用户账号。用户在「API 设置」中填写自己的 OpenAI 兼容 Chat Completions 地址、模型和 API Key。待翻译的正文会直接发送到该 API；原 PDF、译文 PDF、翻译进度、Token 统计和密钥保存在当前浏览器或应用的本地存储中，不会同步到其他设备。
 
 界面使用 React、Mantine 和 Vite。`src/app/` 管理设置与本地任务状态，`src/components/` 放置任务列表和表单等界面组件，`src/reader/` 负责双栏 PDF 阅读器；`src/pdf/` 负责 PDF 提取与导出，`src/translation/` 管理 API 请求和翻译任务，`src/alignment/` 本地解析句级分隔符与高亮范围，`src/text/` 处理富文本，`src/storage/` 保存本地文档。`src/` 根目录仅保留应用入口 `main.jsx`。
 
@@ -24,7 +24,7 @@ uv run python tools/verify_font.py
 
 ## Linux 桌面版（Tauri 2）
 
-Linux 桌面版复用 React 阅读器，使用系统 WebKitGTK，不随应用附带 Chromium 或 Node.js 运行时。当前仅配置 Linux 的 `.deb` 和 AppImage 打包。
+Linux 桌面版复用 React 阅读器，使用系统 WebKitGTK，不随应用附带 Chromium 或 Node.js 运行时。Linux 提供 `.deb` 和 AppImage，macOS 提供 DMG。
 
 开发机需要 Node.js/npm、Rust/Cargo、C/C++ 构建工具、`pkg-config`、GTK 3、WebKitGTK 4.1、OpenSSL 和 librsvg。发行版安装命令见 [Tauri 官方前置要求](https://v2.tauri.app/start/prerequisites/)。Manjaro/Arch 可使用：
 
@@ -50,9 +50,24 @@ npm run linux:build
 
 在 NVIDIA + Wayland 环境下，启动时默认设置 `__NV_DISABLE_EXPLICIT_SYNC=1`，规避显式同步相关的协议错误，同时保留 WebKitGTK 的快速渲染路径；已有同名环境变量时不会覆盖，使用 `GDK_BACKEND=x11` 时也不会设置。其他环境保持默认渲染设置。若特定驱动仍出现白屏、GBM 缓冲创建失败或 `Error 71`，可手动用 `WEBKIT_DISABLE_DMABUF_RENDERER=1` 启动作为兼容回退，但这会影响动画和大文档的图形性能。背景与说明见 [Tauri Linux 图形问题文档](https://v2.tauri.app/develop/debug/linux-graphics/)。
 
-### GitHub CI/CD 与版本发布
+## macOS 桌面版（Tauri 2）
 
-普通分支推送和 Pull Request 会运行测试及前端构建。推送 `v` 开头的标签后，`.github/workflows/release-linux.yml` 会在 Ubuntu 22.04 上测试、构建 Linux x86_64 的 `.deb` 和 AppImage，并发布到该标签对应的 GitHub Release，附带 `SHA256SUMS` 校验文件。构建失败时不会创建 Release；上传完整后才公开新建的 Release。安装包同时保留为 Actions Artifact，保留 14 天。
+支持 macOS 15 及以上，分别提供 Apple Silicon（arm64）和 Intel（x86_64）的 DMG。复用系统 WKWebView，不附带 Chromium。当前 PDF.js 使用较新的 WebKit API，因此首版设置 macOS 15 为最低系统版本。
+
+本地构建需要 macOS、Xcode Command Line Tools、Node.js/npm 和 Rust/Cargo：
+
+```bash
+xcode-select --install
+npm ci
+npm run mac:dev
+npm run mac:build
+```
+
+DMG 位于 `src-tauri/target/release/bundle/dmg/`。平台配置 `src-tauri/tauri.macos.conf.json` 自动合并到共用配置，版本仍统一维护。CI 在 macOS 15 的两种架构 runner 上分别原生构建。当前使用 ad-hoc 签名，尚未配置 Apple Developer ID 签名和公证，下载后的应用可能被 Gatekeeper 拦截；正式分发签名配置见 [Tauri macOS 签名文档](https://v2.tauri.app/distribute/sign/macos/)。
+
+## GitHub CI/CD 与版本发布
+
+普通分支推送和 Pull Request 会运行测试及前端构建。推送 `v` 开头的标签后，`.github/workflows/release-desktop.yml` 会并行测试和构建 Linux x86_64 的 `.deb`、AppImage，以及 macOS arm64、x86_64 的两个 DMG。所有构建成功后统一发布到该标签对应的 GitHub Release，附带 `SHA256SUMS` 校验文件。构建失败时不会创建 Release；上传完整后才公开新建的 Release。安装包同时保留为 Actions Artifact，保留 14 天。
 
 支持 `vMAJOR.MINOR` 和 `vMAJOR.MINOR.PATCH`，例如 `v0.2` 对应应用版本 `0.2.0`，`v0.2.1` 对应 `0.2.1`。推荐使用三段版本号。不支持前导零、预发布后缀或其他标签格式；不符合规则的 `v*` 标签会直接报错。CI 以标签为版本来源，自动同步 `package.json`、`package-lock.json`、Tauri 配置、Cargo 清单及锁文件，不会把 CI 中的版本修改提交回仓库。
 

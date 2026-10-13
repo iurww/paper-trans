@@ -1,7 +1,7 @@
 {
   "$schema": "../node_modules/@tauri-apps/cli/config.schema.json",
   "productName": "PaperLens",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "identifier": "io.paperlens.desktop",
   "build": {
     "frontendDist": "../dist",
@@ -28,7 +28,10 @@
   },
   "bundle": {
     "active": true,
-    "targets": ["deb", "appimage"],
+    "targets": [
+      "deb",
+      "appimage"
+    ],
     "category": "Education",
     "shortDescription": "论文翻译与双语 PDF 阅读工作台",
     "icon": [
