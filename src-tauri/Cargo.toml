@@ -1,6 +1,6 @@
 [package]
 name = "paperlens"
-version = "0.2.0"
+version = "0.2.1"
 description = "PaperLens desktop PDF translation workbench"
 edition = "2024"
 rust-version = "1.90"
