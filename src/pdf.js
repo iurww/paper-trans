@@ -6,6 +6,13 @@ import { groupParagraphs, layoutParagraph } from './paragraphs.js';
 
 pdfjs.GlobalWorkerOptions.workerSrc = workerUrl;
 
+function loadPdf(bytes) {
+  return pdfjs.getDocument({
+    data: bytes.slice(),
+    wasmUrl: new URL(`${import.meta.env.BASE_URL}pdfjs/wasm/`, document.baseURI).href,
+  });
+}
+
 const heading = /^(?:references|bibliography|literature cited|参考文献)\s*$/i;
 const caption = /^(?:fig(?:ure)?\.?|table|图|表)\s*[\dIVX]+[\s.:：-]/i;
 const note = /^(?:notes?|source|footnotes?|注(?:释)?|来源)\s*[:：.]|^[*†‡]\s+\S/i;
@@ -39,7 +46,7 @@ function classify(lines, width, state, pageNumber) {
 }
 
 export async function readPdf(bytes) {
-  const task = pdfjs.getDocument({ data: bytes.slice() });
+  const task = loadPdf(bytes);
   const pdf = await task.promise;
   const pages = [];
   const classification = { references: false };
@@ -94,7 +101,7 @@ export async function renderPage(pdf, number, canvas, cssWidth) {
   await page.render({ canvasContext: canvas.getContext('2d', { alpha: false }), viewport }).promise;
 }
 
-export const openPdf = bytes => pdfjs.getDocument({ data: bytes.slice() }).promise;
+export const openPdf = bytes => loadPdf(bytes).promise;
 
 export async function exportPdf(sourceBytes, pages, fontData) {
   const pdf = await PDFDocument.load(sourceBytes);
