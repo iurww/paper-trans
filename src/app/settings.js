@@ -3,7 +3,7 @@ export const SIDEBAR_KEY = 'paperlens-sidebar-collapsed';
 
 const defaultSettings = {
   endpoint: 'https://api.deepseek.com/chat/completions',
-  model: 'deepseek-chat',
+  model: 'deepseek-flash',
   key: '',
   visionKey: '',
 };
