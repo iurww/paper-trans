@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { processVisualPages } from '../src/visual-pages.js';
+import { processVisualPages } from '../src/translation/visual-pages.js';
 
 test('malformed pages do not cancel the other in-flight pages, and retry skips saved pages', async () => {
   const completed = new Set([1]);

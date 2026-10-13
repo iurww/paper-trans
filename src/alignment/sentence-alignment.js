@@ -1,82 +1,9 @@
-import { visibleVisualPages } from './visual-content.js';
-import { displayParagraphText } from './reader/visual-format.js';
-import { mathPattern, validRichTextBoundaries } from './rich-text.js';
+import { splitSentenceSegments } from './sentence-separator.js';
+import { visibleVisualPages } from '../translation/visual-content.js';
+import { displayParagraphText } from '../reader/visual-format.js';
+import { validRichTextBoundaries } from '../text/rich-text.js';
 
 export const ALIGNMENT_VERSION = 1;
-export const ALIGNMENT_PROTOCOL = 2;
-
-// Sentence text is always sliced from the saved source. The model only chooses
-// correspondence IDs, so whitespace, escaping and formulae cannot be rewritten.
-export function sentenceCandidates(text) {
-  const tokens = [...text.matchAll(mathPattern)];
-  let masked = text;
-  for (const token of tokens.toReversed()) {
-    masked = masked.slice(0, token.index) + 'M'.repeat(token[0].length) + masked.slice(token.index + token[0].length);
-  }
-  masked = masked.replace(/\\[A-Za-z]+\*?\{|\\[A-Za-z]+|[*_]+|[{}]/g, token => ' '.repeat(token.length));
-  const ends = [];
-  const abbreviation = /(?:\b(?:Dr|Mr|Mrs|Ms|Prof|Fig|Figs|Eq|Eqs|No|Nos|Vol|pp|vs|al|etc|e\.g|i\.e)|\b[A-Z])\.[\s*_}]*$/i;
-  for (const part of new Intl.Segmenter(undefined, { granularity: 'sentence' }).segment(masked)) {
-    let end = part.index + part.segment.length;
-    const inside = tokens.find(token => end > token.index && end < token.index + token[0].length);
-    if (inside) end = inside.index + inside[0].length;
-    const last = ends.at(-1) || 0;
-    if (end <= last || abbreviation.test(text.slice(last, end)) && end < text.length) continue;
-    if (validRichTextBoundaries(text, [end])) ends.push(end);
-  }
-  if (ends.at(-1) !== text.length) ends.push(text.length);
-  let start = 0;
-  const sentences = [];
-  for (const end of ends) {
-    const fragment = text.slice(start, end);
-    if (!fragment.trim() && sentences.length) sentences[sentences.length - 1] += fragment;
-    else sentences.push(fragment);
-    start = end;
-  }
-  return sentences;
-}
-
-export function candidateInput(input) {
-  return input.map(({ paragraph, original, chinese }) => ({ paragraph,
-    original: sentenceCandidates(original), chinese: sentenceCandidates(chinese) }));
-}
-
-export function validateCandidateParagraph(item, basis, candidates, page) {
-  // Accept older exact-string responses as well; never trust their copied text.
-  if (Array.isArray(item?.original) && Array.isArray(item?.chinese)) {
-    return validateAlignment({ paragraphs: [item] }, [basis], page)?.paragraphs[0] || null;
-  }
-  if (item?.paragraph !== basis.paragraph || !Array.isArray(item.links) || !item.links.length) return null;
-  const counts = { original: candidates.original.length, chinese: candidates.chinese.length };
-  const edges = [];
-  for (const link of item.links) {
-    const normalized = {};
-    for (const side of ['original', 'chinese']) {
-      const ids = Array.isArray(link?.[side]) ? link[side] : [link?.[side]];
-      if (!ids.length) return null;
-      normalized[side] = [...new Set(ids.map(id => typeof id === 'string' && /^\d+$/.test(id) ? Number(id) : id))];
-      if (normalized[side].some(id => !Number.isInteger(id) || id < 0 || id >= counts[side])) return null;
-    }
-    edges.push(normalized);
-  }
-  // Repeated links for split translations describe a connected group. Merge
-  // their shared IDs rather than rejecting an otherwise complete mapping.
-  const groups = [];
-  for (const edge of edges) {
-    const group = { original: new Set(edge.original), chinese: new Set(edge.chinese) };
-    for (let index = groups.length - 1; index >= 0; index--) {
-      const previous = groups[index];
-      if (['original', 'chinese'].some(side => [...previous[side]].some(id => group[side].has(id)))) {
-        for (const side of ['original', 'chinese']) for (const id of previous[side]) group[side].add(id);
-        groups.splice(index, 1);
-      }
-    }
-    groups.push(group);
-  }
-  const links = groups.map(group => Object.fromEntries(['original', 'chinese'].map(side =>
-    [side, [...group[side]].sort((a, b) => a - b)])));
-  return validateAlignment({ paragraphs: [{ ...candidates, links }] }, [basis], page)?.paragraphs[0] || null;
-}
 
 // Use the same normalized, filtered text as the viewer, so offsets do not drift
 // when duplicate display formulae or original-only metadata are hidden.
@@ -168,4 +95,32 @@ export function exportAlignment(visualPages, alignments = []) {
       return alignmentCurrent(alignment, inputs[index])
         ? [{ ...alignment, complete: alignmentMatches(alignment, inputs[index]) }] : [];
     }) };
+}
+
+// Derive offsets from the same display normalization as the reader. Validation
+// rejects empty groups, count mismatches and boundaries inside rich-text tokens.
+export function separatorAlignment(visualPages, previous = []) {
+  const inputs = alignmentInputs(visualPages);
+  return visibleVisualPages(visualPages).map((paragraphs, index) => {
+    if (!visualPages[index]) return null;
+    const input = inputs[index];
+    const generated = [];
+    for (const basis of input) {
+      const marked = displayParagraphText(paragraphs[basis.paragraph], { preserveSeparators: true });
+      const original = splitSentenceSegments(marked.original);
+      const chinese = splitSentenceSegments(marked.chinese);
+      if (original.length !== chinese.length) continue;
+      // Unmarked legacy prose has no claimed sentence boundaries.
+      if (original.length === 1) continue;
+      const valid = validateAlignment({ paragraphs: [{ paragraph: basis.paragraph, original, chinese,
+        links: original.map((_, id) => ({ original: [id], chinese: [id] })) }] }, [basis], index + 1);
+      if (valid) generated.push(valid.paragraphs[0]);
+    }
+    const old = alignmentCurrent(previous[index], input) ? previous[index].paragraphs : [];
+    return withParagraphFallback({ version: ALIGNMENT_VERSION, number: index + 1, input,
+      paragraphs: input.flatMap(item => {
+        const entry = generated.find(entry => entry.paragraph === item.paragraph) || old.find(entry => entry.paragraph === item.paragraph);
+        return entry ? [entry] : [];
+      }) }, input, index + 1);
+  });
 }

@@ -1,7 +1,7 @@
 import katex from 'katex';
 import 'katex/dist/katex.min.css';
 
-import { mathPattern, normalizeLatexText } from '../rich-text.js';
+import { mathPattern, normalizeLatexText } from '../text/rich-text.js';
 
 const emphasisPattern = /(?<!\\)\*\*\*([\s\S]+?)\*\*\*|(?<!\\)___([\s\S]+?)___|(?<!\\)\*\*([\s\S]+?)\*\*|(?<!\\)__([\s\S]+?)__|(?<!\\)\*([\s\S]+?)\*|(?<![\w\\])_([\s\S]+?)_(?!\w)|\\(textit|textbf|emph)\{/g;
 const placeholderPattern = /\uE000(\d+)\uE001|\uE002(\d*)\uE003/g;

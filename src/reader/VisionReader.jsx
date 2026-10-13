@@ -5,13 +5,10 @@ import { Download, FileJson, FileText, PanelLeftClose, PanelLeftOpen, RotateCcw,
 import PdfPane from './PdfPane.jsx';
 import LatexText from './LatexText.jsx';
 import { displayParagraphText } from './visual-format.js';
-import { getPdfPageInfo, runVisualTranslation } from '../vision-translator.js';
-import { visibleVisualPages } from '../visual-content.js';
-import { runSentenceAlignment } from '../alignment-translator.js';
-import { alignmentInputs, alignmentMatches, exportAlignment, highlightRanges, withParagraphFallback } from '../sentence-alignment.js';
+import { getPdfPageInfo, runVisualTranslation } from '../translation/vision-translator.js';
+import { visibleVisualPages } from '../translation/visual-content.js';
+import { alignmentInputs, exportAlignment, highlightRanges, separatorAlignment } from '../alignment/sentence-alignment.js';
 import { highlightSentence } from './sentence-highlight.js';
-import { alignmentProblems } from '../alignment-problems.js';
-import AlignmentProblems from './AlignmentProblems.jsx';
 
 const ignoreSentence = () => {};
 
@@ -39,21 +36,9 @@ export default function VisionReader({ document, settings, sidebarCollapsed, onT
   const originalBlob = useRef(document.original).current;
   const displayPages = useMemo(() => visibleVisualPages(document.visualPages || []), [document.visualPages]);
   const inputs = useMemo(() => alignmentInputs(document.visualPages || []), [document.visualPages]);
-  const alignedPages = useMemo(() => inputs.map((input, index) => document.visualPages?.[index]
-    ? withParagraphFallback(document.sentenceAlignments?.[index], input, index + 1) : null), [document.sentenceAlignments, inputs, document.visualPages]);
+  const alignedPages = useMemo(() => separatorAlignment(document.visualPages || [], document.sentenceAlignments),
+    [document.visualPages, document.sentenceAlignments]);
   const hoverSentence = useCallback(id => highlightSentence(translatedRef.current, id), []);
-  const problems = useMemo(() => alignmentProblems(document),
-    [document.visualPages, document.sentenceAlignments, document.alignmentPageErrors]);
-  const jumpToPage = number => {
-    setMobileView('translated');
-    requestAnimationFrame(() => {
-      const root = translatedRef.current;
-      const target = root?.querySelector(`.visual-page[data-page="${number}"]`);
-      if (!target) return;
-      root.scrollTo({ top: root.scrollTop + target.getBoundingClientRect().top - root.getBoundingClientRect().top, behavior: 'smooth' });
-      setActivePage(number);
-    });
-  };
 
   useEffect(() => { hoverSentence(null); }, [document.id, alignedPages, hoverSentence]);
 
@@ -77,14 +62,13 @@ export default function VisionReader({ document, settings, sidebarCollapsed, onT
     }
   }, []);
 
-  const downloadJson = (sentences = false, diagnostics = false) => {
-    const payload = diagnostics ? { filename: document.filename, pages: problems }
-      : sentences ? exportAlignment(document.visualPages || [], alignedPages)
+  const downloadJson = (sentences = false) => {
+    const payload = sentences ? exportAlignment(document.visualPages || [], alignedPages)
       : { pages: (document.visualPages || []).filter(Boolean).map(page => ({ page: page.number, paragraphs: page.paragraphs })) };
     const url = URL.createObjectURL(new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' }));
     const link = window.document.createElement('a');
     link.href = url;
-    link.download = `${document.filename.replace(/\.pdf$/i, '')}-${diagnostics ? 'alignment-diagnostics' : sentences ? 'sentence-alignment' : 'visual-translation'}.json`;
+    link.download = `${document.filename.replace(/\.pdf$/i, '')}-${sentences ? 'sentence-alignment' : 'visual-translation'}.json`;
     link.click();
     setTimeout(() => URL.revokeObjectURL(url), 1000);
   };
@@ -101,7 +85,7 @@ export default function VisionReader({ document, settings, sidebarCollapsed, onT
       <div className="zoom-controls">
         {(document.visualPages || []).some(Boolean) && <ActionIcon variant="subtle" color="teal" aria-label="下载对照 JSON" title="下载对照 JSON" onClick={() => downloadJson()}><Download size={18} /></ActionIcon>}
         {(alignedPages.some(Boolean) || inputs.some(input => !input.length)) && <ActionIcon variant="subtle" color="teal" aria-label="下载句级对照 JSON" title="下载句级对照 JSON" onClick={() => downloadJson(true)}><FileJson size={18} /></ActionIcon>}
-        {document.visualPages?.[activePage - 1] && <ActionIcon variant="subtle" color="teal" aria-label="重新识别当前页" title="重新识别当前页" disabled={!settings?.visionKey || document.visualStatus === 'working' || document.alignmentStatus === 'working'}
+        {document.visualPages?.[activePage - 1] && <ActionIcon variant="subtle" color="teal" aria-label="重新识别当前页" title="重新识别当前页" disabled={!settings?.visionKey || document.visualStatus === 'working'}
           onClick={() => runVisualTranslation(document.id, settings.visionKey, { retry: true, onlyPage: activePage, redoPage: true })}><RotateCcw size={18} /></ActionIcon>}
         <ActionIcon variant="subtle" color="teal" aria-label="缩小" onClick={() => setScale(value => Math.max(.75, value - .25))}><ZoomOut size={18} /></ActionIcon>
         <ActionIcon variant="subtle" color="teal" aria-label="放大" onClick={() => setScale(value => Math.min(2.5, value + .25))}><ZoomIn size={18} /></ActionIcon>
@@ -110,10 +94,6 @@ export default function VisionReader({ document, settings, sidebarCollapsed, onT
     <div className="reader-workspace">
       {pageError && <Alert color="red">PDF 无法打开：{pageError}</Alert>}
       {document.visualStatus === 'error' && <Alert color="red" className="vision-error">{document.visualError}<Button ml="sm" size="compact-sm" variant="white" onClick={() => runVisualTranslation(document.id, settings?.visionKey, { retry: true })}>重试未完成页</Button></Alert>}
-      {document.alignmentStatus === 'error' && !problems.length && <AlignmentProblems problems={problems} error={document.alignmentError}
-        disabled={!settings?.visionKey || document.visualStatus === 'working'} onJump={jumpToPage}
-        onDownload={() => downloadJson(false, true)}
-        onRetry={number => runSentenceAlignment(document.id, settings?.visionKey, { retry: true, onlyPage: number || null })} />}
       <div className="mobile-view-switch"><SegmentedControl value={mobileView} onChange={setMobileView}
         data={[{ label: 'PDF 原件', value: 'original' }, { label: '逐段对照', value: 'translated' }]} fullWidth size="xs" color="teal" /></div>
       <div className={`vision-spread mobile-${mobileView}`}>
@@ -123,20 +103,12 @@ export default function VisionReader({ document, settings, sidebarCollapsed, onT
           <div className="visual-progress">已完成 {(document.visualPages || []).filter(Boolean).length} / {pages.length || '…'} 页
             {document.visualActivePage && document.visualPages?.[document.visualActivePage - 1] ? ` · 正在重新识别第 ${document.visualActivePage} 页` : ''}
             {document.visualTokens?.total ? ` · ${document.visualTokens.total} token` : ''}</div>
-          <div className="visual-progress">句级对照 {(document.visualPages || []).filter((page, index) => page && alignmentMatches(alignedPages[index], inputs[index])).length} / {(document.visualPages || []).filter(Boolean).length} 页
-            {document.alignmentStatus === 'working' ? ' · 正在细化句级对照…' : ''}
-            {document.alignmentTokens?.total ? ` · 对齐 ${document.alignmentTokens.total} token（输入 ${document.alignmentTokens.prompt}，输出 ${document.alignmentTokens.completion}，缓存命中 ${document.alignmentTokens.cacheHit || 0}）` : ''}
-          </div>
           {pages.map(page => {
             const result = document.visualPages?.[page.number - 1];
             const visibleParagraphs = displayPages[page.number - 1] || [];
             return <section key={page.number} className="visual-page" data-page={page.number} aria-label={`第 ${page.number} 页译文`}>
               {result && document.visualPageErrors?.[page.number] && document.visualStatus !== 'working' &&
                 <Alert color="red" mb="sm">重新识别失败：{document.visualPageErrors[page.number]}</Alert>}
-              {result && !alignmentMatches(alignedPages[page.number - 1], inputs[page.number - 1]) && document.alignmentPageErrors?.[page.number] && document.alignmentStatus !== 'working' &&
-                <Alert color="orange" mb="sm">句级对照失败：{document.alignmentPageErrors[page.number]}
-                  <Button ml="sm" size="compact-xs" variant="light" color="teal" disabled={!settings?.visionKey || document.visualStatus === 'working'}
-                    onClick={() => runSentenceAlignment(document.id, settings?.visionKey, { retry: true, onlyPage: page.number })}>重试本页对齐</Button></Alert>}
               {result ? visibleParagraphs.length ? visibleParagraphs.map((paragraph, index) =>
                 <VisualParagraph key={index} paragraph={paragraph} index={index} alignment={alignedPages[page.number - 1]}
                   onSentenceHover={hoverSentence} />) : <p className="visual-empty">此页无文字</p>

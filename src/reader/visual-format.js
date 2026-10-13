@@ -1,11 +1,16 @@
-import { originalOnlyKinds } from '../visual-content.js';
-import { normalizeLatexText } from '../rich-text.js';
+import { originalOnlyKinds } from '../translation/visual-content.js';
+import { normalizeLatexText } from '../text/rich-text.js';
+
+import { stripSentenceSeparators } from '../alignment/sentence-separator.js';
 
 const displayMath = /(?<!\\)\$\$([\s\S]+?)(?<!\\)\$\$|\\\[([\s\S]+?)\\\]|\\begin\{(equation\*?|align\*?|gather\*?|multline\*?|displaymath)\}([\s\S]+?)\\end\{\3\}/g;
 
 const normalizeFormula = text => text.replace(/\s+/g, '');
 
-export function displayParagraphText(paragraph) {
+export function displayParagraphText(paragraph, { preserveSeparators = false } = {}) {
+  if (!preserveSeparators) paragraph = { ...paragraph,
+    original: stripSentenceSeparators(paragraph.original),
+    chinese: stripSentenceSeparators(paragraph.chinese || '') };
   const heading = paragraph.kind === 'title' || paragraph.kind === 'heading';
   const original = normalizeLatexText(heading ? paragraph.original.replace(/\s*\n\s*/g, ' ').trim() : paragraph.original);
   const chineseText = typeof paragraph.chinese === 'string' ? paragraph.chinese : '';

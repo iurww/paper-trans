@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { openPdf } from '../pdf.js';
+import { openPdf } from '../pdf/pdf.js';
 
 function releasePdf(pdf) {
   void pdf.loadingTask.destroy().catch(() => {});

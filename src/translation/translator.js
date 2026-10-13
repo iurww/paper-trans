@@ -1,5 +1,5 @@
-import { getDocument, listDocuments, updateDocument } from './storage.js';
-import { exportPdf, readPdf } from './pdf.js';
+import { getDocument, listDocuments, updateDocument } from '../storage/storage.js';
+import { exportPdf, readPdf } from '../pdf/pdf.js';
 import { RetryableTranslationError, TranslationConfigurationError, translateBatch } from './translation-api.js';
 
 export const MAX_PENDING = 3;

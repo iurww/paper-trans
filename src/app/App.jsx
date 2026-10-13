@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { ActionIcon, Alert, Button, Drawer, Modal, SegmentedControl } from '@mantine/core';
 import { FileText, PanelLeftClose, PanelLeftOpen, Settings } from 'lucide-react';
-import { resumeConfigurationErrors } from '../translator.js';
+import { resumeConfigurationErrors } from '../translation/translator.js';
 import { downloadTranslation, label } from './format.js';
 import { hasModeResult } from './mode.js';
 import { loadSettings, saveSettings, SIDEBAR_KEY } from './settings.js';

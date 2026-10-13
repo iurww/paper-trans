@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { RetryableTranslationError, translateBatch } from '../src/translation-api.js';
+import { RetryableTranslationError, translateBatch } from '../src/translation/translation-api.js';
 
 const settings = { endpoint: 'https://example.test/chat/completions', model: 'test-model', key: 'test-key' };
 const response = (content, usage = { prompt_tokens: 10, completion_tokens: 5, total_tokens: 15 }) => ({

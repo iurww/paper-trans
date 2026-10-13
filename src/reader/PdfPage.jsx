@@ -1,5 +1,5 @@
 import { memo, useEffect, useMemo, useRef, useState } from 'react';
-import { renderPage } from '../pdf.js';
+import { renderPage } from '../pdf/pdf.js';
 
 function collectZones(page, version) {
   if (page.blocks) return page.blocks.flatMap(block => block.sentences.flatMap(sentence =>

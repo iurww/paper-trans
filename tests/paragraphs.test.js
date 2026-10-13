@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { groupParagraphs, layoutParagraph } from '../src/paragraphs.js';
+import { groupParagraphs, layoutParagraph } from '../src/pdf/paragraphs.js';
 
 const line = (source, x0, y0, x1, y1, kind = 'prose') => ({ source, rect: [x0, y0, x1, y1], fontSize: 10, kind, translate: true });
 

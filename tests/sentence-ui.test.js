@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import React from 'react';
 import { renderToString } from 'react-dom/server';
 import { createServer } from 'vite';
-import { validateAlignment, highlightRanges } from '../src/sentence-alignment.js';
+import { validateAlignment, highlightRanges } from '../src/alignment/sentence-alignment.js';
 
 function elements(tree, predicate) {
   if (!tree || typeof tree !== 'object') return [];

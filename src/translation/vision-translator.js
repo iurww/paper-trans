@@ -1,9 +1,9 @@
-import { getDocument, updateDocument } from './storage.js';
-import { openPdf } from './pdf.js';
+import { getDocument, updateDocument } from '../storage/storage.js';
+import { openPdf } from '../pdf/pdf.js';
 import { translateVisualPage } from './vision-api.js';
 import { notifyChange } from './translator.js';
 import { processVisualPages } from './visual-pages.js';
-import { runSentenceAlignment } from './alignment-translator.js';
+import { separatorAlignment } from '../alignment/sentence-alignment.js';
 
 const running = new Set();
 
@@ -31,6 +31,7 @@ async function savePage(id, number, result, usage = {}, error = '') {
     } else visualPageErrors[number] = error;
     const previous = current.visualTokens || { prompt: 0, completion: 0, total: 0 };
     return { ...current, visualPages, visualPageErrors, visualActivePage: null,
+      sentenceAlignments: separatorAlignment(visualPages, current.sentenceAlignments),
       visualTokens: {
         prompt: previous.prompt + (usage.prompt_tokens || 0),
         completion: previous.completion + (usage.completion_tokens || 0),
@@ -107,8 +108,5 @@ export async function runVisualTranslation(id, key, { retry = false, onlyPage = 
   } finally {
     if (pdf) await pdf.loadingTask.destroy().catch(() => {});
     running.delete(id);
-    // Existing translated documents also take this path, without re-rendering
-    // or re-translating their pages. Alignment has its own progress and retries.
-    await runSentenceAlignment(id, key);
   }
 }

@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { listDocuments, putDocument } from '../storage.js';
-import { MAX_PENDING, runQueue, subscribeChanges, retryDocument } from '../translator.js';
+import { listDocuments, putDocument } from '../storage/storage.js';
+import { MAX_PENDING, runQueue, subscribeChanges, retryDocument } from '../translation/translator.js';
 
 export function useDocumentLibrary(settings, onNeedSettings, onError) {
   const [documents, setDocuments] = useState([]);

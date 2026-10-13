@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { omitVisualItem, visibleVisualPages } from '../src/visual-content.js';
+import { omitVisualItem, visibleVisualPages } from '../src/translation/visual-content.js';
 
 test('existing visual results retain references but hide tables and printed page numbers', () => {
   assert.equal(omitVisualItem({ kind: 'reference', original: 'Rafailov et al. 2023' }), false);

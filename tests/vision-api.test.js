@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { parseVisualPage, translateVisualPage, DEEPSEEK_VISION_ENDPOINT, DEEPSEEK_VISION_MODEL } from '../src/vision-api.js';
+import { parseVisualPage, translateVisualPage, DEEPSEEK_VISION_ENDPOINT, DEEPSEEK_VISION_MODEL } from '../src/translation/vision-api.js';
 
 test('sends the PDF screenshot to DeepSeek and preserves original and Chinese LaTeX in page JSON', async () => {
   const image = 'data:image/jpeg;base64,abc123';
