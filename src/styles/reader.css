@@ -41,4 +41,14 @@
 .vision-error{flex:none;margin-bottom:6px}
 .latex-display{display:block;overflow-x:auto;max-width:100%;margin:8px 0}
 .latex-inline{display:inline}
+.visual-scroll [data-latex]{cursor:pointer}
+.visual-scroll [data-latex]:focus-visible{outline:2px solid #237761;outline-offset:2px}
+.latex-source-popup{position:fixed;z-index:400;width:max-content;max-width:min(480px,calc(100vw - 16px));padding:8px 10px;background:#fff;border:1px solid #c9dbd0;border-radius:8px;box-shadow:0 6px 24px #193d2933;color:#172e24}
+.latex-source-row{display:flex;align-items:flex-start;gap:8px}
+.latex-source-row pre{flex:1;min-width:0;max-height:min(240px,calc(100dvh - 100px));overflow:auto;margin:0;white-space:pre-wrap;overflow-wrap:anywhere;font:13px/1.6 monospace;user-select:text}
+.latex-source-row button{flex:none;display:flex;align-items:center;justify-content:center;width:28px;height:28px;border:1px solid #a5c8b5;border-radius:5px;background:#edf7f1;color:#21694c;padding:0;cursor:pointer;transition:background .15s,transform .15s}
+.latex-source-row button:active{transform:scale(.9)}
+.latex-source-row button[data-status=success]{background:#d6efdf}
+.latex-source-row button[data-status=error]{background:#fff0ee;color:#b44736;border-color:#e3b1a9}
+.latex-source-row button:disabled{opacity:.6;cursor:wait}
 @media(max-width:760px){.reader-toolbar{padding:0 10px}.reader-mode-switch{margin-left:4px}.reader-mode-switch .mantine-SegmentedControl-label{padding:5px 7px;font-size:11px}.page-count{display:none}.reader-workspace{padding:5px}.mobile-view-switch{display:block;margin-bottom:5px}.reader-spread,.vision-spread{display:block}.pdf-pane{height:100%}.reader-spread.mobile-original .translated,.reader-spread.mobile-translated .original,.vision-spread.mobile-original .visual-scroll,.vision-spread.mobile-translated .original{display:none}.sync-controls{display:none}.pdf-scroll{padding:5px}.visual-scroll{height:100%}.visual-page{padding:12px 11px}}

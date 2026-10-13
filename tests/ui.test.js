@@ -47,6 +47,11 @@ test('reader and task sidebar render the saved PDF record without changing its f
     const latex = wrap(React.createElement(LatexText, { text: 'Energy $E=mc^2$ and $$x^2+y^2$$' }));
     assert.match(latex, /class="katex"/);
     assert.match(latex, /katex-display/);
+    assert.match(latex, /data-latex="E=mc\^2"/);
+    assert.match(latex, /data-latex="x\^2\+y\^2"/);
+    assert.equal((latex.match(/aria-label="查看 LaTeX 源码"/g) || []).length, 2);
+    const environmentFormula = wrap(React.createElement(LatexText, { text: '\\begin{align}x&=y\\end{align}' }));
+    assert.ok(environmentFormula.includes('data-latex="\\begin{align}x&amp;=y\\end{align}"'));
     const emphasis = wrap(React.createElement(LatexText, { text: '**Theorem 1 Restated.** *Assume $\\pi_{ref}(y\\mid x)>0$\nfor all pairs.*' }));
     assert.match(emphasis, /<strong>/);
     assert.match(emphasis, /<em>/);
@@ -66,6 +71,7 @@ test('reader and task sidebar render the saved PDF record without changing its f
     const numberedFormula = 'f(r; \\pi_{\\text{ref}}, \\beta)(x, y) = r(x, y) - \\beta \\log \\sum_y \\pi_{\\text{ref}}(y \\mid x) \\exp \\left( \\frac{1}{\\beta} r(x, y) \\right) \\tag{8}';
     const bareNumbered = wrap(React.createElement(LatexText, { text: numberedFormula }));
     assert.match(bareNumbered, /class="katex-display"/);
+    assert.ok(bareNumbered.includes('data-latex="' + numberedFormula + '"'));
     assert.doesNotMatch(bareNumbered, /class="katex-error"/);
     const detachedNumber = wrap(React.createElement(LatexText, { text: '$$f(x)=x^2$$ \\tag{9}' }));
     assert.match(detachedNumber, /class="katex-display"/);
@@ -77,6 +83,7 @@ test('reader and task sidebar render the saved PDF record without changing its f
     assert.match(mixedTagged, /class="katex-display"/);
     const bareEquation = wrap(React.createElement(LatexText, { text: 'x^2 + y^2 = z^2', standaloneEquation: true }));
     assert.match(bareEquation, /class="katex-display"/);
+    assert.match(bareEquation, /data-latex="x\^2 \+ y\^2 = z\^2"/);
     const sidebar = wrap(React.createElement(TaskSidebar, {
       documents: [document], selected: document, onSelect() {}, onNew() {},
       onSettings() {}, onDownload() {}, onRetranslate() {},

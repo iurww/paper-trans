@@ -60,6 +60,7 @@ function renderMathAndText(text, formulas, prefix, context) {
       const html = katex.renderToString(formula, { displayMode, throwOnError: false, strict: 'ignore', trust: false, output: 'html' });
       const props = sentenceProps(context);
       pieces.push(<span key={`${prefix}m${match.index}`} {...props}
+        data-latex={formula} tabIndex={0} role="button" aria-label="查看 LaTeX 源码"
         className={`${displayMode ? 'latex-display' : 'latex-inline'}${props.className ? ` ${props.className}` : ''}`}
         dangerouslySetInnerHTML={{ __html: html }} />);
     } else appendText(match[0], `${prefix}r${match.index}`);
@@ -112,7 +113,7 @@ export default function LatexText({ text = '', standaloneEquation = false, range
     try {
       const html = katex.renderToString(formula, { displayMode: true, throwOnError: true,
         strict: 'ignore', trust: false, output: 'html' });
-      return <span className="latex-display" dangerouslySetInnerHTML={{ __html: html }} />;
+      return <span className="latex-display" data-latex={formula} tabIndex={0} role="button" aria-label="查看 LaTeX 源码" dangerouslySetInnerHTML={{ __html: html }} />;
     } catch { /* Fall back to readable source if KaTeX cannot parse this OCR result. */ }
   }
   const context = ranges.length ? { ranges, onSentenceHover, active: null } : undefined;

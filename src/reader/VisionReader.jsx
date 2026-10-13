@@ -4,6 +4,7 @@ import { useMediaQuery } from '@mantine/hooks';
 import { Download, FileJson, FileText, PanelLeftClose, PanelLeftOpen, RotateCcw, ZoomIn, ZoomOut } from 'lucide-react';
 import PdfPane from './PdfPane.jsx';
 import LatexText from './LatexText.jsx';
+import LatexSourcePopup from './LatexSourcePopup.jsx';
 import { displayParagraphText } from './visual-format.js';
 import { getPdfPageInfo, runVisualTranslation } from '../translation/vision-translator.js';
 import { visibleVisualPages } from '../translation/visual-content.js';
@@ -31,6 +32,17 @@ export default function VisionReader({ document, settings, sidebarCollapsed, onT
   const [activePage, setActivePage] = useState(1);
   const [scale, setScale] = useState(1);
   const [mobileView, setMobileView] = useState('translated');
+  const [latexTarget, setLatexTarget] = useState(null);
+  const closeLatex = useCallback(() => setLatexTarget(null), []);
+  const openLatex = event => {
+    const element = event.target.closest?.('[data-latex]');
+    if (!element || !event.currentTarget.contains(element)) return;
+    if (event.type === 'keydown') {
+      if (event.key !== 'Enter' && event.key !== ' ') return;
+      event.preventDefault();
+    }
+    setLatexTarget({ element, source: element.dataset.latex });
+  };
   const originalRef = useRef(null);
   const translatedRef = useRef(null);
   const originalBlob = useRef(document.original).current;
@@ -41,6 +53,7 @@ export default function VisionReader({ document, settings, sidebarCollapsed, onT
   const hoverSentence = useCallback(id => highlightSentence(translatedRef.current, id), []);
 
   useEffect(() => { hoverSentence(null); }, [document.id, alignedPages, hoverSentence]);
+  useEffect(closeLatex, [document.id, document.visualPages, scale, mobileView, closeLatex]);
 
   useEffect(() => {
     let active = true;
@@ -99,7 +112,7 @@ export default function VisionReader({ document, settings, sidebarCollapsed, onT
       <div className={`vision-spread mobile-${mobileView}`}>
         <PdfPane version="original" blob={originalBlob} pages={pages} scale={scale} scrollRef={originalRef}
           onScroll={updatePage} onSentenceOpen={ignoreSentence} onSentenceHover={ignoreSentence} mobile={mobile} />
-        <div ref={translatedRef} className="visual-scroll" style={{ '--reading-scale': scale }} onScroll={event => updatePage('translated', event.currentTarget)}>
+        <div ref={translatedRef} className="visual-scroll" style={{ '--reading-scale': scale }} onClick={openLatex} onKeyDown={openLatex} onScroll={event => updatePage('translated', event.currentTarget)}>
           <div className="visual-progress">已完成 {(document.visualPages || []).filter(Boolean).length} / {pages.length || '…'} 页
             {document.visualActivePage && document.visualPages?.[document.visualActivePage - 1] ? ` · 正在重新识别第 ${document.visualActivePage} 页` : ''}
             {document.visualTokens?.total ? ` · ${document.visualTokens.total} token` : ''}</div>
@@ -124,5 +137,6 @@ export default function VisionReader({ document, settings, sidebarCollapsed, onT
         </div>
       </div>
     </div>
+    {latexTarget && <LatexSourcePopup key={latexTarget.source} target={latexTarget} onClose={closeLatex} />}
   </div>;
 }
