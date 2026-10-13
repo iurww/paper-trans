@@ -27,6 +27,9 @@
 .visual-paragraph{padding:8px 0 11px;border-bottom:1px solid #edf1ed;line-height:1.75;overflow-wrap:anywhere}
 .visual-paragraph:last-child{border-bottom:0}
 .visual-original,.visual-chinese{white-space:pre-wrap}
+.visual-sentence{cursor:pointer;border-radius:2px;box-decoration-break:clone;-webkit-box-decoration-break:clone}
+.visual-sentence.active{background:#f3d87180;box-shadow:0 0 0 1px #d7ae2f55}
+.visual-sentence:focus-visible{outline:2px solid #237761;outline-offset:2px}
 .visual-original{font-size:calc(14px * var(--reading-scale));color:#394d42}
 .visual-chinese{font-size:calc(15px * var(--reading-scale));color:#172e24;margin-top:7px;padding-left:9px;border-left:3px solid #8fc7ad}
 .visual-title .visual-original,.visual-title .visual-chinese{font-size:calc(21px * var(--reading-scale));font-weight:700}
@@ -36,6 +39,10 @@
 .visual-caption .visual-original,.visual-caption .visual-chinese,.visual-footnote .visual-original,.visual-footnote .visual-chinese,.visual-reference .visual-original,.visual-reference .visual-chinese{font-size:calc(13px * var(--reading-scale))}
 .visual-pending,.visual-empty{display:flex;align-items:center;gap:9px;color:#71867a;font-size:13px;padding:18px 0}
 .vision-error{flex:none;margin-bottom:6px}
+.alignment-problems{max-height:220px;overflow:auto;margin-top:8px}
+.alignment-problem{display:flex;align-items:center;gap:8px;flex-wrap:wrap;padding:6px 0;border-top:1px solid #d7ae2f30}
+.alignment-problem details{width:100%;overflow-wrap:anywhere}
+.alignment-problem p{margin:6px 0;white-space:pre-wrap}
 .latex-display{display:block;overflow-x:auto;max-width:100%;margin:8px 0}
 .latex-inline{display:inline}
 @media(max-width:760px){.reader-toolbar{padding:0 10px}.reader-mode-switch{margin-left:4px}.reader-mode-switch .mantine-SegmentedControl-label{padding:5px 7px;font-size:11px}.page-count{display:none}.reader-workspace{padding:5px}.mobile-view-switch{display:block;margin-bottom:5px}.reader-spread,.vision-spread{display:block}.pdf-pane{height:100%}.reader-spread.mobile-original .translated,.reader-spread.mobile-translated .original,.vision-spread.mobile-original .visual-scroll,.vision-spread.mobile-translated .original{display:none}.sync-controls{display:none}.pdf-scroll{padding:5px}.visual-scroll{height:100%}.visual-page{padding:12px 11px}}

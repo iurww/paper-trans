@@ -8,11 +8,12 @@ import { createServer } from 'vite';
 test('reader and task sidebar render the saved PDF record without changing its format', async () => {
   const vite = await createServer({ server: { middlewareMode: true }, optimizeDeps: { noDiscovery: true, include: [] } });
   try {
-    const [{ default: Reader }, { default: TaskSidebar }, { default: LatexText }, { default: PdfPage }] = await Promise.all([
+    const [{ default: Reader }, { default: TaskSidebar }, { default: LatexText }, { default: PdfPage }, { default: AlignmentProblems }] = await Promise.all([
       vite.ssrLoadModule('/src/reader/Reader.jsx'),
       vite.ssrLoadModule('/src/components/TaskSidebar.jsx'),
       vite.ssrLoadModule('/src/reader/LatexText.jsx'),
       vite.ssrLoadModule('/src/reader/PdfPage.jsx'),
+      vite.ssrLoadModule('/src/reader/AlignmentProblems.jsx'),
     ]);
     const document = {
       id: 'paper-1', filename: 'paper.pdf', status: 'done', progress: 100,
@@ -39,6 +40,19 @@ test('reader and task sidebar render the saved PDF record without changing its f
     assert.match(visualReader, /PDF 原件/);
     assert.match(visualReader, /重新识别当前页/);
     assert.match(visualReader.replaceAll('<!-- -->', ''), /左 1 .*右 1/);
+    const diagnostic = wrap(React.createElement(AlignmentProblems, {
+      problems: [{ number: 12, reason: 'Invalid JSON', paragraphs: [{ paragraph: 3, original: 'Original sentence.', chinese: '原译文。' }] },
+        { number: 37, reason: 'Missing indices', paragraphs: [{ paragraph: 1, original: 'Another sentence.', chinese: '另一句。' }] }],
+      error: '仍有 2 个已翻译页面缺少有效句级对照', disabled: false,
+      onJump() {}, onRetry() {}, onDownload() {},
+    }));
+    assert.match(diagnostic.replaceAll('<!-- -->', ''), /PDF 第 12、37 页/);
+    assert.match(diagnostic, /跳转到第 12 页译文/);
+    assert.match(diagnostic, /跳转到第 37 页译文/);
+    assert.match(diagnostic, /下载未对齐诊断 JSON/);
+    assert.match(diagnostic.replaceAll('<!-- -->', ''), /未完成段落：4/);
+    assert.match(diagnostic, /Invalid JSON/);
+    assert.match(diagnostic, /Original sentence/);
     const screenshotOnlyPage = wrap(React.createElement(PdfPage, {
       page: { number: 1, width: 612, height: 792 }, pdf: null, version: 'original', scale: 1,
       visible: true, onSentenceOpen() {}, onSentenceHover() {}, mobile: false,

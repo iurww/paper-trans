@@ -3,6 +3,7 @@ import { openPdf } from './pdf.js';
 import { translateVisualPage } from './vision-api.js';
 import { notifyChange } from './translator.js';
 import { processVisualPages } from './visual-pages.js';
+import { runSentenceAlignment } from './alignment-translator.js';
 
 const running = new Set();
 
@@ -106,5 +107,8 @@ export async function runVisualTranslation(id, key, { retry = false, onlyPage = 
   } finally {
     if (pdf) await pdf.loadingTask.destroy().catch(() => {});
     running.delete(id);
+    // Existing translated documents also take this path, without re-rendering
+    // or re-translating their pages. Alignment has its own progress and retries.
+    await runSentenceAlignment(id, key);
   }
 }

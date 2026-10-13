@@ -1,4 +1,5 @@
 import { originalOnlyKinds } from '../visual-content.js';
+import { normalizeLatexText } from '../rich-text.js';
 
 const displayMath = /(?<!\\)\$\$([\s\S]+?)(?<!\\)\$\$|\\\[([\s\S]+?)\\\]|\\begin\{(equation\*?|align\*?|gather\*?|multline\*?|displaymath)\}([\s\S]+?)\\end\{\3\}/g;
 
@@ -6,7 +7,7 @@ const normalizeFormula = text => text.replace(/\s+/g, '');
 
 export function displayParagraphText(paragraph) {
   const heading = paragraph.kind === 'title' || paragraph.kind === 'heading';
-  const original = heading ? paragraph.original.replace(/\s*\n\s*/g, ' ').trim() : paragraph.original;
+  const original = normalizeLatexText(heading ? paragraph.original.replace(/\s*\n\s*/g, ' ').trim() : paragraph.original);
   const chineseText = typeof paragraph.chinese === 'string' ? paragraph.chinese : '';
   if (paragraph.kind === 'equation' || paragraph.originalOnly || originalOnlyKinds.has(paragraph.kind) ||
     original.replace(/\s+/g, '') === chineseText.replace(/\s+/g, '')) return { original, chinese: '' };
@@ -17,5 +18,5 @@ export function displayParagraphText(paragraph) {
     originalFormulae.has(normalizeFormula(dollars || brackets || body)) ? '' : whole)
     .replace(/[ \t]+\n/g, '\n').replace(/[ \t]{2,}/g, ' ')
     .replace(/[ \t]+([，。；：、！？,.!?;:])/g, '$1').trim();
-  return { original, chinese: heading ? chinese.replace(/\s*\n\s*/g, ' ') : chinese };
+  return { original, chinese: normalizeLatexText(heading ? chinese.replace(/\s*\n\s*/g, ' ') : chinese) };
 }
