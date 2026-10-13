@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { ActionIcon, Alert, Button, Drawer, Modal, SegmentedControl } from '@mantine/core';
+import { ActionIcon, Alert, Button, Drawer, Modal, SegmentedControl, Select, Text } from '@mantine/core';
 import { FileText, PanelLeftClose, PanelLeftOpen, Settings } from 'lucide-react';
 import { resumeConfigurationErrors } from '../translation/translator.js';
 import { downloadTranslation, label } from './format.js';
@@ -17,6 +17,7 @@ export default function App() {
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [uploadOpen, setUploadOpen] = useState(false);
+  const [uploadFolderId, setUploadFolderId] = useState(null);
   const [uploadMode, setUploadMode] = useState('visual');
   const [sidebarCollapsed, setSidebarCollapsed] = useState(() => localStorage.getItem(SIDEBAR_KEY) === 'true');
   const [notice, setNotice] = useState('');
@@ -40,7 +41,7 @@ export default function App() {
     localStorage.setItem(SIDEBAR_KEY, String(!current));
     return !current;
   }), []);
-  const chooseFile = useCallback(() => { setDrawerOpen(false); setUploadMode(mode); setUploadOpen(true); }, [mode]);
+  const chooseFile = useCallback(() => { setDrawerOpen(false); setUploadMode(mode); setUploadFolderId(library.folderId); setUploadOpen(true); }, [mode, library.folderId]);
   const selectDocument = useCallback(id => {
     const record = library.documents.find(item => item.id === id);
     setMode(record?.mode || (record?.translated ? 'standard' : 'visual'));
@@ -67,7 +68,9 @@ export default function App() {
   }, []);
 
   const sidebarProps = {
-    documents: library.documents, selected, onSelect: selectDocument, onNew: chooseFile,
+    documents: library.documents, removingIds: library.removingIds, selected, onSelect: selectDocument, onNew: chooseFile,
+    folders: library.folders, folderId: library.folderId, onFolderSelect: library.setFolderId,
+    onCreateFolder: library.createFolder, onMove: library.move, onDelete: library.remove,
     onSettings: openSettings, onDownload: download, onRetranslate: retranslate,
   };
 
@@ -75,7 +78,7 @@ export default function App() {
     <TaskSidebar {...sidebarProps} />
     <main className="app-main">
       {reading ? <Reader key={selected.id} document={selected} settings={settings} mode={mode} onModeChange={changeMode} sidebarCollapsed={sidebarCollapsed}
-        onToggleSidebar={toggleSidebar} onOpenTasks={openTasks} overlayOpen={settingsOpen || drawerOpen || uploadOpen} /> : <>
+        onToggleSidebar={toggleSidebar} onOpenTasks={openTasks} overlayOpen={settingsOpen || drawerOpen || uploadOpen || Boolean(library.duplicate)} /> : <>
         <header className="regular-toolbar">
           <ActionIcon className="desktop-sidebar-toggle" variant="subtle" color="teal" aria-label={sidebarCollapsed ? '展开任务列表' : '折叠任务列表'} onClick={toggleSidebar}>
             {sidebarCollapsed ? <PanelLeftOpen size={18} /> : <PanelLeftClose size={18} />}
@@ -95,17 +98,24 @@ export default function App() {
     <input ref={fileInput} type="file" accept="application/pdf,.pdf" hidden onChange={async event => {
       const file = event.currentTarget.files?.[0];
       event.currentTarget.value = '';
-      if (file && await library.upload(file, uploadMode)) setMode(uploadMode);
+      if (file && await library.upload(file, uploadMode, uploadFolderId)) setMode(uploadMode);
     }} />
     {/* Reading panes own scrolling; locking body forces WebKit to relayout the entire paper. */}
     <Drawer lockScroll={!reading} opened={drawerOpen} onClose={() => setDrawerOpen(false)} position="right" size="min(360px, 88vw)" title="我的文献"
       styles={{ body: { padding: 0, height: 'calc(100% - 60px)' } }}>
       <TaskSidebar {...sidebarProps} mobile />
     </Drawer>
-    <Modal lockScroll={!reading} opened={uploadOpen} onClose={() => setUploadOpen(false)} title="选择翻译模式" centered size="sm">
+    <Modal lockScroll={!reading} opened={uploadOpen} onClose={() => setUploadOpen(false)} title="新建翻译" centered size="sm">
+      <Select label="保存目录" placeholder="请选择目录" required allowDeselect={false} value={uploadFolderId} onChange={setUploadFolderId}
+        data={library.folders.map(folder => ({ value: folder.id, label: folder.name }))} mb="md" />
       <SegmentedControl value={uploadMode} onChange={setUploadMode} fullWidth color="teal"
         data={[{ label: '常规翻译', value: 'standard' }, { label: '纯视觉识别', value: 'visual' }]} />
-      <Button fullWidth color="teal" mt="lg" onClick={() => { setUploadOpen(false); fileInput.current?.click(); }}>选择 PDF</Button>
+      <Button fullWidth color="teal" mt="lg" disabled={!uploadFolderId} onClick={() => { setUploadOpen(false); fileInput.current?.click(); }}>选择 PDF</Button>
+    </Modal>
+    <Modal lockScroll={!reading} opened={Boolean(library.duplicate)} onClose={library.cancelDuplicate} title="这篇论文已存在" centered size="sm">
+      <Text size="sm">上传的 PDF 与「{library.duplicate?.existing.filename}」内容完全相同。覆盖会清除已有译文和识别记录，并按所选模式重新开始。</Text>
+      <Button fullWidth color="teal" mt="lg" onClick={async () => { const nextMode = library.duplicate.mode; if (await library.overwriteDuplicate()) setMode(nextMode); }}>覆盖并重新翻译</Button>
+      <Button fullWidth variant="default" mt="sm" onClick={library.cancelDuplicate}>取消</Button>
     </Modal>
     <SettingsModal lockScroll={!reading} opened={settingsOpen} onClose={() => setSettingsOpen(false)} settings={settings} onSave={handleSettingsSave} />
     {notice && <div className="notice"><Alert color="red" variant="filled">{notice}</Alert></div>}

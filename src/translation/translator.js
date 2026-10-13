@@ -19,7 +19,7 @@ export function notifyChange(record) {
 async function save(record) {
   const saved = await updateDocument(record.id, current => {
     const next = { ...record };
-    for (const key of ['visualPages', 'visualPageCount', 'visualPageErrors', 'visualActivePage', 'visualStatus', 'visualError', 'visualTokens', 'mode']) {
+    for (const key of ['visualPages', 'visualPageCount', 'visualPageErrors', 'visualActivePage', 'visualStatus', 'visualError', 'visualTokens', 'mode', 'folderId', 'metadata', 'fingerprint']) {
       if (Object.hasOwn(current, key)) next[key] = current[key];
     }
     return next;
@@ -70,6 +70,7 @@ async function process(record, settings) {
     record.status = 'done'; record.progress = 100; record.retryCount = 0; record.retryAt = 0;
     await save(record);
   } catch (error) {
+    if (!await getDocument(record.id)) return;
     if (error instanceof RetryableTranslationError) {
       record.status = 'retrying';
       record.retryCount = (record.retryCount || 0) + 1;

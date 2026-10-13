@@ -93,6 +93,7 @@ export async function runVisualTranslation(id, key, { retry = false, onlyPage = 
       onFailure: (number, error) => savePage(id, number, null, error.usage, error.message || String(error)),
     });
     const latest = await getDocument(id);
+    if (!latest) return;
     const missing = Array.from({ length: pdf.numPages }, (_, index) => index + 1)
       .filter(number => !latest.visualPages?.[number - 1]);
     if (redoPage && latest.visualPageErrors?.[onlyPage] && !missing.length) {
@@ -104,6 +105,7 @@ export async function runVisualTranslation(id, key, { retry = false, onlyPage = 
       visualError: `仍有 ${missing.length} 页未完成（第 ${missing.slice(0, 8).join('、')}${missing.length > 8 ? '…' : ''} 页），可重试失败页。`,
     } : { visualStatus: 'done', visualError: '', visualActivePage: null, visualPageErrors: {} });
   } catch (error) {
+    if (!await getDocument(id)) return;
     await saveVisual(id, { visualStatus: 'error', visualActivePage: null, visualError: error.message || String(error) });
   } finally {
     if (pdf) await pdf.loadingTask.destroy().catch(() => {});

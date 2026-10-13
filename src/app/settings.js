@@ -5,11 +5,13 @@ const defaultSettings = {
   endpoint: 'https://api.deepseek.com/chat/completions',
   model: 'deepseek-flash',
   key: '',
-  visionKey: '',
 };
 
 export function loadSettings() {
-  try { return { ...defaultSettings, ...JSON.parse(localStorage.getItem(SETTINGS_KEY) || '{}') }; }
+  try {
+    const { visionKey, ...saved } = JSON.parse(localStorage.getItem(SETTINGS_KEY) || '{}');
+    return { ...defaultSettings, ...saved, model: !saved.model || saved.model === 'deepseek-chat' ? defaultSettings.model : saved.model, key: saved.key || visionKey || '' };
+  }
   catch { return { ...defaultSettings }; }
 }
 

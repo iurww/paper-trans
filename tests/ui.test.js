@@ -32,7 +32,7 @@ test('reader and task sidebar render the saved PDF record without changing its f
     assert.match(reader.replaceAll('<!-- -->', ''), /左 1 .*右 1/);
     const visualReader = wrap(React.createElement(Reader, {
       document: { ...document, pages: null, translated: null, visualPages: [{ number: 1, paragraphs: [] }], visualStatus: 'done' },
-      mode: 'visual', settings: { visionKey: 'test-key' },
+      mode: 'visual', settings: { key: 'test-key' },
       sidebarCollapsed: false, onToggleSidebar() {}, onOpenTasks() {}, onModeChange() {},
     }));
     assert.match(visualReader, /逐段对照/);
@@ -85,9 +85,17 @@ test('reader and task sidebar render the saved PDF record without changing its f
     assert.match(bareEquation, /class="katex-display"/);
     assert.match(bareEquation, /data-latex="x\^2 \+ y\^2 = z\^2"/);
     const sidebar = wrap(React.createElement(TaskSidebar, {
-      documents: [document], selected: document, onSelect() {}, onNew() {},
+      documents: [document], selected: document, folderId: 'default', onSelect() {}, onNew() {},
       onSettings() {}, onDownload() {}, onRetranslate() {},
     }));
+    const rootSidebar = wrap(React.createElement(TaskSidebar, { documents: [document] }));
+    assert.match(rootSidebar, /我的目录/);
+    assert.match(rootSidebar, /default/);
+    assert.doesNotMatch(rootSidebar, /class="task-item/);
+    assert.match(sidebar, /返回目录列表/);
+    assert.match(sidebar, /查看 paper.pdf 详情/);
+    assert.match(sidebar, /调整侧边栏宽度/);
+    assert.doesNotMatch(sidebar, /PDF 生成器|创建工具/);
     assert.match(sidebar, /下载译文 PDF/);
     assert.match(sidebar, /按句重译/);
     const sidebarText = sidebar.replaceAll('<!-- -->', '');

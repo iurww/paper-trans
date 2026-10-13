@@ -74,7 +74,7 @@ export default memo(function VisionReader({ document, settings, sidebarCollapsed
     return () => { active = false; };
   }, [document.id]);
 
-  useEffect(() => { void runVisualTranslation(document.id, settings?.visionKey, { retry: Boolean(settings?.visionKey) }); }, [document.id, settings?.visionKey]);
+  useEffect(() => { void runVisualTranslation(document.id, settings?.key, { retry: Boolean(settings?.key) }); }, [document.id, settings?.key]);
 
   const updatePage = useCallback((version, root) => {
     const top = root.getBoundingClientRect().top + 40;
@@ -110,8 +110,8 @@ export default memo(function VisionReader({ document, settings, sidebarCollapsed
       <div className="zoom-controls">
         {(document.visualPages || []).some(Boolean) && <ActionIcon variant="subtle" color="teal" aria-label="下载对照 JSON" title="下载对照 JSON" onClick={() => downloadJson()}><Download size={18} /></ActionIcon>}
         {(alignedPages.some(Boolean) || inputs.some(input => !input.length)) && <ActionIcon variant="subtle" color="teal" aria-label="下载句级对照 JSON" title="下载句级对照 JSON" onClick={() => downloadJson(true)}><FileJson size={18} /></ActionIcon>}
-        {document.visualPages?.[activePage - 1] && <ActionIcon variant="subtle" color="teal" aria-label="重新识别当前页" title="重新识别当前页" disabled={!settings?.visionKey || document.visualStatus === 'working'}
-          onClick={() => runVisualTranslation(document.id, settings.visionKey, { retry: true, onlyPage: activePage, redoPage: true })}><RotateCcw size={18} /></ActionIcon>}
+        {document.visualPages?.[activePage - 1] && <ActionIcon variant="subtle" color="teal" aria-label="重新识别当前页" title="重新识别当前页" disabled={!settings?.key || document.visualStatus === 'working'}
+          onClick={() => runVisualTranslation(document.id, settings.key, { retry: true, onlyPage: activePage, redoPage: true })}><RotateCcw size={18} /></ActionIcon>}
         <ActionIcon variant="subtle" color="teal" aria-label="缩小" onClick={() => setScale(value => Math.max(.75, value - .25))}><ZoomOut size={18} /></ActionIcon>
         <ActionIcon variant="subtle" color="teal" aria-label="放大" onClick={() => setScale(value => Math.min(2.5, value + .25))}><ZoomIn size={18} /></ActionIcon>
       </div>
@@ -119,7 +119,7 @@ export default memo(function VisionReader({ document, settings, sidebarCollapsed
     <div className="reader-workspace">
       {pageError && <Alert color="red">PDF 无法打开：{pageError}</Alert>}
       {exportError && <Alert color="red" withCloseButton onClose={() => setExportError('')}>{exportError}</Alert>}
-      {document.visualStatus === 'error' && <Alert color="red" className="vision-error">{document.visualError}<Button ml="sm" size="compact-sm" variant="white" onClick={() => runVisualTranslation(document.id, settings?.visionKey, { retry: true })}>重试未完成页</Button></Alert>}
+      {document.visualStatus === 'error' && <Alert color="red" className="vision-error">{document.visualError}<Button ml="sm" size="compact-sm" variant="white" onClick={() => runVisualTranslation(document.id, settings?.key, { retry: true })}>重试未完成页</Button></Alert>}
       <div className="mobile-view-switch"><SegmentedControl value={mobileView} onChange={setMobileView}
         data={[{ label: 'PDF 原件', value: 'original' }, { label: '逐段对照', value: 'translated' }]} fullWidth size="xs" color="teal" /></div>
       <div className={`vision-spread mobile-${mobileView}`}>
@@ -143,7 +143,7 @@ export default memo(function VisionReader({ document, settings, sidebarCollapsed
                   : document.visualPageErrors?.[page.number]
                     ? <>此页失败：{document.visualPageErrors[page.number]}
                       {document.visualStatus !== 'working' && <Button size="compact-xs" variant="light" color="teal"
-                        onClick={() => runVisualTranslation(document.id, settings?.visionKey, { retry: true, onlyPage: page.number })}>重试本页</Button>}</>
+                        onClick={() => runVisualTranslation(document.id, settings?.key, { retry: true, onlyPage: page.number })}>重试本页</Button>}</>
                     : document.visualStatus === 'error' ? '此页尚未完成' : '等待识别…'}</div>}
             </section>;
           })}

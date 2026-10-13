@@ -1,9 +1,11 @@
-.task-sidebar{width:246px;min-width:246px;height:100vh;flex:none;display:flex;flex-direction:column;padding:26px 14px 18px;background:#f0f3ef;border-right:1px solid #e3e9e4;overflow:hidden}
+.task-sidebar{position:relative;width:var(--sidebar-width,246px);min-width:var(--sidebar-width,246px);height:100vh;flex:none;display:flex;flex-direction:column;padding:26px 14px 18px;background:#f0f3ef;border-right:1px solid #e3e9e4;overflow:hidden}
 .app-layout.sidebar-collapsed>.task-sidebar{width:0;min-width:0;padding:0;border:0}
 .brand{display:flex;align-items:center;gap:10px;padding:0 14px 30px;font-size:19px;font-weight:700;letter-spacing:-.8px;white-space:nowrap}
 .brand small{display:block;color:#83928d;font-size:10px;letter-spacing:1.2px;font-weight:600;margin-top:2px}
 .brand-mark{width:32px;height:32px;border-radius:9px;color:#fff;background:#1b796a;display:grid;place-items:center;box-shadow:0 4px 12px #1b796a25}
-.new-task{margin:0 8px 28px;flex:none}
+.sidebar-create-actions{margin:0 0 24px;flex:none;display:flex;gap:8px}
+.sidebar-create-actions .mantine-Button-root{flex:1;min-width:0;padding-inline:6px;font-size:12px}
+.sidebar-create-actions .mantine-Button-section[data-position="left"]{margin-inline-end:5px}
 .sidebar-heading{padding:0 14px;color:#65756e;font-size:11px;font-weight:700;letter-spacing:1px;display:flex;justify-content:space-between;margin-bottom:10px}
 .sidebar-heading span{font-size:11px;background:#e4eae5;padding:2px 6px;border-radius:4px}
 .task-list{overflow-y:auto;min-height:0;flex:1}
@@ -17,5 +19,14 @@
 .sidebar-actions .mantine-Button-root{justify-content:flex-start;height:32px;padding:0 4px;font-size:12px}
 .sidebar-actions p{padding:9px 4px 0;font-size:10px}
 .task-sidebar-mobile{height:100%;width:100%;min-width:0;border:0}
-@media(max-width:1000px){.task-sidebar:not(.task-sidebar-mobile){width:205px;min-width:205px}.app-layout.sidebar-collapsed>.task-sidebar{width:0;min-width:0}}
+@media(max-width:1000px){.task-sidebar:not(.task-sidebar-mobile){width:var(--sidebar-width,246px);min-width:var(--sidebar-width,246px)}.app-layout.sidebar-collapsed>.task-sidebar{width:0;min-width:0}}
 @media(max-width:760px){.task-sidebar:not(.task-sidebar-mobile){display:none}.task-sidebar-mobile{padding:12px 14px 18px}.task-sidebar-mobile .brand{display:none}}
+.folder-item{display:flex;align-items:center;gap:8px;width:100%;padding:8px 10px;border:0;border-radius:7px;background:transparent;color:#65756e;text-align:left}
+.folder-item.active{background:#dfece5;color:#12624f}.folder-item:hover{background:#e8eee9}.folder-item span{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.folder-item small{font-size:11px}
+.task-row{display:grid;grid-template-rows:1fr;opacity:1;transform:translateX(0);transition:grid-template-rows 260ms ease,opacity 220ms ease,transform 260ms ease}.task-row-content{position:relative;min-height:0;overflow:hidden}.task-row.is-removing{grid-template-rows:0fr;opacity:0;transform:translateX(-12px);pointer-events:none}.task-row .task-item{padding-right:62px}.task-item-actions{position:absolute;right:3px;top:6px;display:flex;gap:1px}.delete-document{opacity:0}.task-row:hover .delete-document,.task-row:focus-within .delete-document{opacity:1}
+.sidebar-heading{align-items:center;gap:6px}.sidebar-heading strong{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:12px;letter-spacing:0}
+.sidebar-resize-handle{position:absolute;right:0;top:0;bottom:0;width:6px;cursor:col-resize;touch-action:none;z-index:5}.sidebar-resize-handle:hover,.sidebar-resize-handle:focus-visible{background:#1b796a50;outline:none}.app-layout.sidebar-collapsed .sidebar-resize-handle{display:none}
+.document-metadata{font-size:12px}.document-metadata>strong{display:block;overflow-wrap:anywhere;line-height:1.5}.document-metadata dl{max-height:50vh;overflow-y:auto;margin:10px 0}.document-metadata dl>div{display:flex;gap:10px;padding:4px 0}.document-metadata dt{width:70px;flex:none;color:#83928d}.document-metadata dd{margin:0;overflow-wrap:anywhere;min-width:0}
+@media(hover:none){.delete-document{opacity:1}}
+
+@media(prefers-reduced-motion:reduce){.task-row{transition:none}.task-row.is-removing{transform:none}}
