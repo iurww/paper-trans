@@ -3,7 +3,7 @@ import { ActionIcon, Button, Popover, Modal, Progress, Select, Text, TextInput }
 import { Download, FileText, Plus, RotateCcw, Settings, BookOpen, Folder, FolderPlus, Trash2, Info, ArrowLeft, ChevronRight } from 'lucide-react';
 import { label, status, tokenKilos } from '../app/format.js';
 
-const TaskItem = memo(function TaskItem({ document, selected, onSelect, folders, onMove, onDelete, removing = false }) {
+const TaskItem = memo(function TaskItem({ document, selected, onSelect, folders, onMove, onDelete, removing = false, mobile = false }) {
   const [detailsOpen, setDetailsOpen] = useState(false);
   const visual = document.mode === 'visual';
   const donePages = (document.visualPages || []).filter(Boolean).length;
@@ -13,19 +13,7 @@ const TaskItem = memo(function TaskItem({ document, selected, onSelect, folders,
   const paragraphs = document.visualPages?.[0]?.paragraphs || [];
   const title = metadata.title || paragraphs.find(item => item.kind === 'title')?.original || label(document);
   const author = metadata.author || paragraphs.filter(item => item.kind === 'author').map(item => item.original).join('; ');
-  return <div className={`task-row ${removing ? 'is-removing' : ''}`} inert={removing || undefined}><div className="task-row-content"><button type="button" className={`task-item ${selected ? 'selected' : ''}`} onClick={() => onSelect(document.id)}>
-    <span className="task-icon"><FileText size={17} /></span>
-    <span className="task-copy">
-      <strong title={document.filename}>{label(document)}</strong>
-      <small>{status(document)} · {progress}%</small>
-      <small>输入 {tokenKilos(tokens?.prompt)} 输出 {tokenKilos(tokens?.completion)}</small>
-      {(visual ? document.visualStatus === 'working' : !['done', 'error'].includes(document.status)) && <Progress value={progress} size={3} radius="xl" color="teal" mt={5} />}
-    </span>
-    {(visual ? document.visualStatus === 'done' : document.status === 'done') && <span className="task-complete" />}
-  </button>
-    <div className="task-item-actions"><Popover width="min(340px, calc(100vw - 24px))" position="right-start" shadow="md" withinPortal opened={detailsOpen} onChange={setDetailsOpen}>
-    <Popover.Target><ActionIcon variant="subtle" color="teal" aria-label={`查看 ${document.filename} 详情`} aria-expanded={detailsOpen} onClick={() => setDetailsOpen(current => !current)}><Info size={15} /></ActionIcon></Popover.Target>
-    <Popover.Dropdown><div className="document-metadata">
+  const details = <div className="document-metadata">
       <strong>{title}</strong>
       <dl>{[
         ['作者', author || '未提供'], ['文件名', document.filename],
@@ -38,9 +26,29 @@ const TaskItem = memo(function TaskItem({ document, selected, onSelect, folders,
         ['主题', metadata.subject], ['关键词', metadata.keywords],
         ['SHA-256', document.fingerprint], ['错误', document.error || document.visualError],
       ].filter(([, value]) => value).map(([key, value]) => <div key={key}><dt>{key}</dt><dd>{value}</dd></div>)}</dl>
-      <Select size="xs" label="移动到目录" value={document.folderId || 'default'} data={folders.map(folder => ({ value: folder.id, label: folder.name }))} onChange={value => value && onMove?.(document.id, value)} />
-    </div></Popover.Dropdown>
-  </Popover><ActionIcon className="delete-document" variant="subtle" color="red" aria-label={`删除 ${document.filename}`} onClick={() => onDelete(document)}><Trash2 size={14} /></ActionIcon></div></div></div>;
+      <Select comboboxProps={{ withinPortal: false }} size="xs" label="移动到目录" value={document.folderId || 'default'} data={folders.map(folder => ({ value: folder.id, label: folder.name }))} onChange={value => value && onMove?.(document.id, value)} />
+    </div>;
+  return <div className={`task-row ${removing ? 'is-removing' : ''}`} inert={removing || undefined}><div className="task-row-content"><button type="button" className={`task-item ${selected ? 'selected' : ''}`} onClick={() => onSelect(document.id)}>
+    <span className="task-icon"><FileText size={17} /></span>
+    <span className="task-copy">
+      <strong title={document.filename}>{label(document)}</strong>
+      <small>{status(document)} · {progress}%</small>
+      <small>输入 {tokenKilos(tokens?.prompt)} 输出 {tokenKilos(tokens?.completion)}</small>
+      {(visual ? document.visualStatus === 'working' : !['done', 'error'].includes(document.status)) && <Progress value={progress} size={3} radius="xl" color="teal" mt={5} />}
+    </span>
+    {(visual ? document.visualStatus === 'done' : document.status === 'done') && <span className="task-complete" />}
+  </button>
+    <div className="task-item-actions">
+      {mobile ? <>
+        <ActionIcon variant="subtle" color="teal" aria-label={`查看 ${document.filename} 详情`} aria-expanded={detailsOpen} onClick={() => setDetailsOpen(true)}><Info size={15} /></ActionIcon>
+        <Modal opened={detailsOpen} onClose={() => setDetailsOpen(false)} title="文献详情" centered size="sm" lockScroll={false}>
+          {details}
+        </Modal>
+      </> : <Popover width="min(340px, calc(100vw - 24px))" position="right-start" shadow="md" withinPortal opened={detailsOpen} onChange={setDetailsOpen}>
+        <Popover.Target><ActionIcon variant="subtle" color="teal" aria-label={`查看 ${document.filename} 详情`} aria-expanded={detailsOpen} onClick={() => setDetailsOpen(current => !current)}><Info size={15} /></ActionIcon></Popover.Target>
+        <Popover.Dropdown>{details}</Popover.Dropdown>
+      </Popover>}
+      <ActionIcon className="delete-document" variant="subtle" color="red" aria-label={`删除 ${document.filename}`} onClick={() => onDelete(document)}><Trash2 size={14} /></ActionIcon></div></div></div>;
 });
 
 export default function TaskSidebar({ documents, removingIds = [], selected, onSelect, onNew, onSettings, onDownload, onRetranslate, mobile = false, folders = [{ id: 'default', name: 'default' }], folderId = null, onFolderSelect, onCreateFolder, onMove, onDelete }) {
@@ -78,7 +86,7 @@ export default function TaskSidebar({ documents, removingIds = [], selected, onS
       {activeFolder ? <><ActionIcon variant="subtle" color="teal" aria-label="返回目录列表" onClick={() => onFolderSelect?.(null)}><ArrowLeft size={16} /></ActionIcon><strong title={activeFolder.name}>{activeFolder.name}</strong><span>{visible.length}</span></> : <>我的目录 <span>{folders.length}</span></>}
     </div>
     <div className="task-list">
-      {activeFolder ? (visible.length ? visible.map(document => <TaskItem key={document.id} document={document} selected={selected?.id === document.id} onSelect={onSelect} folders={folders} onMove={onMove} onDelete={setDeleting} removing={removingIds.includes(document.id)} />)
+      {activeFolder ? (visible.length ? visible.map(document => <TaskItem key={document.id} document={document} selected={selected?.id === document.id} onSelect={onSelect} folders={folders} onMove={onMove} onDelete={setDeleting} removing={removingIds.includes(document.id)} mobile={mobile} />)
         : <Text size="xs" c="dimmed" px="md" py="sm">此目录暂无文献。</Text>) : <>
         {folders.map(folder => <button type="button" key={folder.id} className="folder-item" onClick={() => onFolderSelect?.(folder.id)}><Folder size={17} /><span>{folder.name}</span><small>{documents.filter(item => (item.folderId || 'default') === folder.id).length}</small><ChevronRight size={14} /></button>)}
       </>}
