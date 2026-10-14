@@ -1,6 +1,6 @@
 {
   "name": "paperlens",
-  "version": "0.3.2",
+  "version": "0.3.3",
   "private": true,
   "type": "module",
   "scripts": {
@@ -15,7 +15,9 @@
     "android:sync": "npm run build && cap sync android",
     "android:open": "cap open android",
     "mac:dev": "tauri dev",
-    "mac:build": "tauri build --bundles dmg",
+    "mac:build": "tauri build --bundles app,dmg",
+    "linux:build:arch": "tauri build --no-bundle",
+    "linux:package:arch": "node tools/prepare-arch-package.mjs",
     "android:build": "npm run android:sync && cd android && ./gradlew assembleDebug"
   },
   "dependencies": {

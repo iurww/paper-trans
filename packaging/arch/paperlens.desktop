@@ -1,0 +1,9 @@
+[Desktop Entry]
+Type=Application
+Name=PaperLens
+Comment=PDF translation and bilingual reading workbench
+Exec=paperlens
+Icon=paperlens
+Terminal=false
+Categories=Education;Office;
+StartupWMClass=PaperLens

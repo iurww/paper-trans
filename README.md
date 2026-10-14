@@ -24,7 +24,7 @@ uv run python tools/verify_font.py
 
 ## Linux 桌面版（Tauri 2）
 
-Linux 桌面版复用 React 阅读器，使用系统 WebKitGTK，不随应用附带 Chromium 或 Node.js 运行时。Linux 提供 `.deb` 和 AppImage，macOS 提供 DMG。
+Linux 桌面版复用 React 阅读器，使用系统 WebKitGTK，不随应用附带 Chromium 或 Node.js 运行时。Linux 提供 `.deb`、AppImage 和 Arch Linux 系的 `.pkg.tar.zst` 安装包，macOS 提供 DMG。
 
 开发机需要 Node.js/npm、Rust/Cargo、C/C++ 构建工具、`pkg-config`、GTK 3、WebKitGTK 4.1、OpenSSL 和 librsvg。发行版安装命令见 [Tauri 官方前置要求](https://v2.tauri.app/start/prerequisites/)。Manjaro/Arch 可使用：
 
@@ -63,6 +63,26 @@ Linux 和 macOS 桌面版（开发启动和正式安装）统一把论文库保�
 
 在 NVIDIA + Wayland 环境下，启动时默认设置 `__NV_DISABLE_EXPLICIT_SYNC=1`，规避显式同步相关的协议错误，同时保留 WebKitGTK 的快速渲染路径；已有同名环境变量时不会覆盖，使用 `GDK_BACKEND=x11` 时也不会设置。其他环境保持默认渲染设置。若特定驱动仍出现白屏、GBM 缓冲创建失败或 `Error 71`，可手动用 `WEBKIT_DISABLE_DMABUF_RENDERER=1` 启动作为兼容回退，但这会影响动画和大文档的图形性能。背景与说明见 [Tauri Linux 图形问题文档](https://v2.tauri.app/develop/debug/linux-graphics/)。
 
+## Arch Linux / Manjaro 安装包
+
+Release 中的 `paperlens-<版本>-1-x86_64.pkg.tar.zst` 是由 Arch Linux 环境原生编译、使用 `makepkg` 打包的 pacman 安装包，包含可执行文件、应用菜单入口、图标和运行时依赖信息。Arch 系统安装命令：
+
+```bash
+sudo pacman -U ./paperlens-0.3.2-1-x86_64.pkg.tar.zst
+```
+
+在 Arch / Manjaro 上本地构建：先安装 `base-devel nodejs npm rust pkgconf gtk3 webkit2gtk-4.1 openssl librsvg`，然后执行：
+
+```bash
+npm ci
+npm run linux:build:arch -- --ci -- --locked
+npm run linux:package:arch
+cd src-tauri/target/release/bundle/arch/work
+PKGEXT=.pkg.tar.zst makepkg --noconfirm --cleanbuild
+```
+
+`makepkg` 必须以普通用户执行。产物在上述 `work/` 目录；打包输入已存在时脚本拒绝覆盖，重新打包前应使用干净构建目录。CI 使用滚动更新的 Arch 环境；Manjaro 用户需要确保系统仓库已提供相应运行库版本。该包目前通过 Release 分发，不自动上传 AUR。
+
 ## macOS 桌面版（Tauri 2）
 
 支持 macOS 15 及以上，仅提供 Apple Silicon（arm64）的 DMG。复用系统 WKWebView，不附带 Chromium。当前 PDF.js 使用较新的 WebKit API，因此首版设置 macOS 15 为最低系统版本。
@@ -82,14 +102,14 @@ DMG 位于 `src-tauri/target/release/bundle/dmg/`。平台配置 `src-tauri/taur
 
 macOS 和 Linux 桌面版每次启动自动检查一次 GitHub 最新 Release；设置中的「获取更新」可手动检查。发现新版后显示版本号、发布时间和发布说明，点击「取消」保留当前版本，点击「更新」下载、验证签名、安装并自动重启。无更新或网络不可用不会在启动时打断阅读，手动检查会显示结果或错误。网页和 Android 暂不接入此更新方式。
 
-支持 macOS 应用、Linux AppImage 和 deb。deb 通过更新插件调用系统包管理器，安装时可能需要管理员授权；AppImage 需要其所在目录可写。开发启动可以检查版本，但不会替换开发程序。更新完成前不能关闭更新窗口；失败可重试，安装成功但重启失败时仅重试重启，不重复安装。论文数据仍保存在 `~/Documents/PaperLens/`。
+支持 macOS 应用、Linux AppImage 和 deb。Arch 原生包可检查新版本，但安装更新请使用 `pacman -U`，当前更新插件尚不支持 pacman 安装。deb 通过更新插件调用系统包管理器，安装时可能需要管理员授权；AppImage 需要其所在目录可写。开发启动可以检查版本，但不会替换开发程序。更新完成前不能关闭更新窗口；失败可重试，安装成功但重启失败时仅重试重启，不重复安装。论文数据仍保存在 `~/Documents/PaperLens/`。
 
 更新端点为 `https://github.com/iurww/paper-trans/releases/latest/download/latest.json`。CI 会上传签名更新包、签名文件和清单；清单内容来自同一个 Release 的版本及说明。新发布的 macOS 使用 `.app.tar.gz`，Linux 按安装类型选择 AppImage 或 deb。签名绑定应用版本，客户端拒绝无效签名和版本不一致的更新包。
 
 本机更新签名私钥在 `.secrets/updater.key`，目录已加入 `.gitignore`；请安全备份并保留同一密钥供后续发布使用。仓库 Actions Secret `TAURI_SIGNING_PRIVATE_KEY` 保存该文件内容；当前生成的私钥使用空密码，无需设置 `TAURI_SIGNING_PRIVATE_KEY_PASSWORD`。公钥已写入 Tauri 配置。打包时必须提供签名密钥，例如：
 
 ```bash
-TAURI_SIGNING_PRIVATE_KEY_PATH="$PWD/.secrets/updater.key" npm run mac:build
+TAURI_SIGNING_PRIVATE_KEY="$PWD/.secrets/updater.key" npm run mac:build
 # Linux 使用相同的环境变量运行 npm run linux:build
 ```
 
@@ -97,7 +117,7 @@ TAURI_SIGNING_PRIVATE_KEY_PATH="$PWD/.secrets/updater.key" npm run mac:build
 
 ## GitHub CI/CD 与版本发布
 
-普通分支推送和 Pull Request 会运行测试及前端构建。推送 `v` 开头的标签后，`.github/workflows/release-desktop.yml` 会并行测试和构建 Linux x86_64 的 `.deb`、AppImage，以及 macOS arm64 的 DMG。所有构建成功后统一发布到该标签对应的 GitHub Release，附带 `SHA256SUMS` 校验文件。构建失败时不会创建 Release；上传完整后才公开新建的 Release。安装包同时保留为 Actions Artifact，保留 14 天。
+普通分支推送和 Pull Request 会运行测试及前端构建。推送 `v` 开头的标签后，`.github/workflows/release-desktop.yml` 会并行测试和构建 Linux x86_64 的 `.deb`、AppImage、Arch Linux 原生 `.pkg.tar.zst`，以及 macOS arm64 的 DMG 和签名更新包。Android 发布任务暂时停用，不阻塞桌面发布。所有构建成功后统一发布到该标签对应的 GitHub Release，附带 `SHA256SUMS` 校验文件。构建失败时不会创建 Release；上传完整后才公开新建的 Release。安装包同时保留为 Actions Artifact，保留 14 天。
 
 支持 `vMAJOR.MINOR` 和 `vMAJOR.MINOR.PATCH`，例如 `v0.2` 对应应用版本 `0.2.0`，`v0.2.1` 对应 `0.2.1`。推荐使用三段版本号。不支持前导零、预发布后缀或其他标签格式；不符合规则的 `v*` 标签会直接报错。CI 以标签为版本来源，自动同步 `package.json`、`package-lock.json`、Tauri 配置、Cargo 清单及锁文件，不会把 CI 中的版本修改提交回仓库。
 
