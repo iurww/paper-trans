@@ -15,6 +15,16 @@ import { saveBlob } from '../platform/desktop.js';
 const ignoreSentence = () => {};
 const readingFontSizes = { original: 15, chinese: 16, title: 22, heading: 18, small: 14 };
 
+function ZoomControls({ label, scale, onChange }) {
+  return <div className="vision-zoom-group" role="group" aria-label={`${label}缩放`}>
+    <span className="vision-zoom-label">{label} {Math.round(scale * 100)}%</span>
+    <ActionIcon variant="subtle" color="teal" aria-label={`${label}缩小`} title={`${label}缩小`} disabled={scale <= .75}
+      onClick={() => onChange(value => Math.max(.75, value - .25))}><ZoomOut size={18} /></ActionIcon>
+    <ActionIcon variant="subtle" color="teal" aria-label={`${label}放大`} title={`${label}放大`} disabled={scale >= 2.5}
+      onClick={() => onChange(value => Math.min(2.5, value + .25))}><ZoomIn size={18} /></ActionIcon>
+  </div>;
+}
+
 const VisualParagraph = memo(function VisualParagraph({ paragraph, index, alignment, onSentenceHover }) {
   const { original, chinese } = displayParagraphText(paragraph);
   const fallback = alignment?.paragraphs?.find(item => item.paragraph === index)?.granularity === 'paragraph';
@@ -33,16 +43,17 @@ export default memo(function VisionReader({ document, settings, sidebarCollapsed
   const [pageError, setPageError] = useState('');
   const [sidePages, setSidePages] = useState({ original: 1, translated: 1 });
   const [activePage, setActivePage] = useState(1);
-  const [scale, setScale] = useState(1);
+  const [originalScale, setOriginalScale] = useState(1);
+  const [translatedScale, setTranslatedScale] = useState(1);
   const readingStyle = useMemo(() => {
     const style = {};
     for (const [kind, base] of Object.entries(readingFontSizes)) {
-      const size = Math.round(base * scale);
+      const size = Math.round(base * translatedScale);
       style[`--reading-${kind}-size`] = `${size}px`;
       style[`--reading-${kind}-line-height`] = `${Math.round(size * 1.75)}px`;
     }
     return style;
-  }, [scale]);
+  }, [translatedScale]);
   const [mobileView, setMobileView] = useState('translated');
   const [latexTarget, setLatexTarget] = useState(null);
   const [exportError, setExportError] = useState('');
@@ -66,7 +77,7 @@ export default memo(function VisionReader({ document, settings, sidebarCollapsed
   const hoverSentence = useCallback(id => highlightSentence(translatedRef.current, id), []);
 
   useEffect(() => { hoverSentence(null); }, [document.id, alignedPages, hoverSentence]);
-  useEffect(closeLatex, [document.id, document.visualPages, scale, mobileView, closeLatex]);
+  useEffect(closeLatex, [document.id, document.visualPages, originalScale, translatedScale, mobileView, closeLatex]);
 
   useEffect(() => {
     let active = true;
@@ -113,8 +124,10 @@ export default memo(function VisionReader({ document, settings, sidebarCollapsed
         {(alignedPages.some(Boolean) || inputs.some(input => !input.length)) && <ActionIcon variant="subtle" color="teal" aria-label="下载句级对照 JSON" title="下载句级对照 JSON" onClick={() => downloadJson(true)}><FileJson size={18} /></ActionIcon>}
         {document.visualPages?.[activePage - 1] && <ActionIcon variant="subtle" color="teal" aria-label="重新识别当前页" title="重新识别当前页" disabled={!settings?.key || document.visualStatus === 'working'}
           onClick={() => runVisualTranslation(document.id, settings.key, { retry: true, onlyPage: activePage, redoPage: true })}><RotateCcw size={18} /></ActionIcon>}
-        <ActionIcon variant="subtle" color="teal" aria-label="缩小" onClick={() => setScale(value => Math.max(.75, value - .25))}><ZoomOut size={18} /></ActionIcon>
-        <ActionIcon variant="subtle" color="teal" aria-label="放大" onClick={() => setScale(value => Math.min(2.5, value + .25))}><ZoomIn size={18} /></ActionIcon>
+        {!translatedOnly && (!narrow || mobileView === 'original') &&
+          <ZoomControls label="原件" scale={originalScale} onChange={setOriginalScale} />}
+        {(translatedOnly || !narrow || mobileView === 'translated') &&
+          <ZoomControls label="对照" scale={translatedScale} onChange={setTranslatedScale} />}
       </div>
     </header>
     <div className="reader-workspace">
@@ -124,7 +137,7 @@ export default memo(function VisionReader({ document, settings, sidebarCollapsed
       {!translatedOnly && <div className="mobile-view-switch"><SegmentedControl value={mobileView} onChange={setMobileView}
         data={[{ label: 'PDF 原件', value: 'original' }, { label: '逐段对照', value: 'translated' }]} fullWidth size="xs" color="teal" /></div>}
       <div className={`vision-spread mobile-${mobileView} ${translatedOnly ? 'translated-only' : ''}`}>
-        {!translatedOnly && <PdfPane version="original" blob={originalBlob} pages={pages} scale={scale} scrollRef={originalRef}
+        {!translatedOnly && <PdfPane version="original" blob={originalBlob} pages={pages} scale={originalScale} scrollRef={originalRef}
           onScroll={updatePage} onSentenceOpen={ignoreSentence} onSentenceHover={ignoreSentence} mobile={mobile} />}
         <div ref={translatedRef} className="visual-scroll" style={readingStyle} onClick={openLatex} onKeyDown={openLatex} onScroll={event => updatePage('translated', event.currentTarget)}>
           <div className="visual-progress">已完成 {(document.visualPages || []).filter(Boolean).length} / {pages.length || '…'} 页

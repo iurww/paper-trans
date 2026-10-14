@@ -44,7 +44,20 @@ npm run linux:build
 
 桌面版通过 Tauri 原生 HTTP 插件发送翻译请求，不受浏览器 CORS 限制；支持用户配置的 HTTP/HTTPS 地址。导出 PDF 和 JSON 时使用系统保存对话框，仅写入用户选中的文件。PDF 解析、识别截图与公式显示仍由现有前端完成。
 
-本阶段保留 IndexedDB 文档存储和 localStorage 设置存储，数据保存在桌面应用自己的 WebView 数据目录，与浏览器和 Android 的记录独立；API Key 暂未迁移到系统密钥环。退出应用会停止正在进行的请求，重新打开论文后按已保存进度恢复。不要删除应用数据目录；重要结果请导出备份。
+Linux 和 macOS 桌面版（开发启动和正式安装）统一把论文库保存在 `~/Documents/PaperLens/`，暂不支持修改根目录；Linux 也使用该固定路径，不跟随 XDG 文档目录配置。软件内的一级目录对应磁盘上的同名目录，每篇论文一个「原文件名去扩展名--唯一 ID」目录，避免同名论文相互覆盖：
+
+```text
+~/Documents/PaperLens/
+  default/
+    .folder.json
+    论文名称--唯一ID/
+      original.pdf       # 提交的原件
+      translation.json   # 标准/视觉译文、句级对齐、进度及恢复任务所需状态
+      metadata.json      # 原文件名、标题、作者、指纹等元信息
+      translated.pdf     # 常规模式生成译文 PDF 后保存
+```
+
+移动论文会移动其目录，删除论文会删除其目录和文件。JSON 使用临时文件加原子重命名保存。启动时自动迁移当前 WebView 来源下的旧 IndexedDB 论文库，保留旧数据库副本；开发版和正式版分别迁移，之后共用这个文件系统论文库。请避免同时运行两个桌面实例编辑同一论文库。API 设置、密钥和界面偏好仍保存在各自 WebView 的 localStorage，网页与 Android 的论文库仍使用 IndexedDB。退出应用会停止正在进行的请求，重新打开论文后按已保存进度恢复。备份论文库时先退出软件，再复制整个 `~/Documents/PaperLens/`。
 
 本机构建用于当前 Linux 环境试用。Manjaro 上生成的安装包尚不保证能在旧版 Ubuntu/Debian 上运行；正式跨发行版发布应在最低支持的发行版上构建，并验证 WebKitGTK、glibc、X11/Wayland 和 PDF.js 的兼容性。
 
