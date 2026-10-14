@@ -1,4 +1,4 @@
-name: Release Desktop
+name: Release Packages
 
 on:
   push:
@@ -68,8 +68,43 @@ jobs:
           if-no-files-found: error
           retention-days: 14
 
+  android:
+    runs-on: ubuntu-22.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+      - uses: android-actions/setup-android@v3
+      - uses: gradle/actions/setup-gradle@v4
+      - name: Synchronize release version
+        env:
+          RELEASE_TAG: ${{ github.ref_name }}
+        run: node tools/release-version.mjs "$RELEASE_TAG"
+      - run: npm ci
+      - run: npm test
+      - run: npm run android:build
+      - name: Collect installable debug APK
+        env:
+          RELEASE_TAG: ${{ github.ref_name }}
+        run: |
+          mkdir release-assets
+          cp android/app/build/outputs/apk/debug/app-debug.apk "release-assets/PaperLens-${RELEASE_TAG}-android-debug.apk"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: PaperLens-${{ github.ref_name }}-android
+          path: release-assets/*.apk
+          if-no-files-found: error
+          retention-days: 14
+
   publish:
-    needs: build
+    needs: [build, android]
     runs-on: ubuntu-22.04
     timeout-minutes: 15
     permissions:
@@ -88,8 +123,9 @@ jobs:
           debs=(*.deb)
           appimages=(*.AppImage)
           dmgs=(*.dmg)
-          [[ ${#debs[@]} == 1 && ${#appimages[@]} == 1 && ${#dmgs[@]} == 1 ]]
-          sha256sum *.deb *.AppImage *.dmg > SHA256SUMS
+          apks=(*.apk)
+          [[ ${#debs[@]} == 1 && ${#appimages[@]} == 1 && ${#dmgs[@]} == 1 && ${#apks[@]} == 1 ]]
+          sha256sum *.deb *.AppImage *.dmg *.apk > SHA256SUMS
       - name: Publish GitHub Release
         env:
           GH_TOKEN: ${{ github.token }}

@@ -39,6 +39,13 @@ test('reader and task sidebar render the saved PDF record without changing its f
     assert.match(visualReader, /PDF 原件/);
     assert.match(visualReader, /重新识别当前页/);
     assert.match(visualReader.replaceAll('<!-- -->', ''), /左 1 .*右 1/);
+    const androidReader = wrap(React.createElement(Reader, {
+      document: { ...document, pages: null, translated: null, visualPages: [{ number: 1, paragraphs: [] }], visualStatus: 'done' },
+      mode: 'standard', translatedOnly: true, settings: { key: 'test-key' }, onOpenTasks() {},
+    }));
+    assert.match(androidReader, /translated-only/);
+    assert.match(androidReader, /打开任务列表/);
+    assert.doesNotMatch(androidReader, /PDF 原件|reader-mode-switch|mobile-view-switch|class="pdf-pane/);
     const screenshotOnlyPage = wrap(React.createElement(PdfPage, {
       page: { number: 1, width: 612, height: 792 }, pdf: null, version: 'original', scale: 1,
       visible: true, onSentenceOpen() {}, onSentenceHover() {}, mobile: false,

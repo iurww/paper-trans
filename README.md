@@ -139,3 +139,11 @@ node tools/verify-vision-sentences.mjs samples.json output/vision-check disabled
 ```
 
 `samples.json` 为 `[{"id":"sample-p1","pdf":"/path/to/paper.pdf","page":1}]`。可只传 `enabled` 或 `disabled` 对同一提示词复测；已有 summary 的样本会跳过，独立复测须使用新的输出目录。统计中的 `suspectUnsplit` 只是人工检查候选，编号、缩写、原文相同的引用项可能误报，数量相等也不能代替语义审核。
+
+### Android v0.3.0
+
+安卓端仅提供纯视觉翻译阅读视图，显示识别后的原文与中文段落，不加载原件 PDF 阅读面板或模式切换。通过「我的文献」管理目录、上传和删除论文；新建翻译需要选择保存目录。API Key 与桌面端设置一致，原生 HTTP 请求避免 WebView 跨域限制。
+
+本机安装 JDK 21 和 Android SDK 35 后，配置 `ANDROID_HOME`，运行 `npm run android:build`。可安装的测试 APK 位于 `android/app/build/outputs/apk/debug/app-debug.apk`。安卓版本号从 `package.json` 读取。
+
+推送 `v*` 标签会同时构建桌面安装包和 `PaperLens-vX.Y.Z-android-debug.apk`，上传至 GitHub Release 并生成校验和。APK 使用 debug 签名，适合直接安装测试；不同构建环境的 debug 签名可能不同，升级时若签名不匹配需先卸载（会删除本机数据）。正式分发版本仍需配置稳定的发布签名。

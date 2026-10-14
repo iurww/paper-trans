@@ -7,7 +7,7 @@ import VisionReader from './VisionReader.jsx';
 import { useSynchronizedScroll } from './useSynchronizedScroll.js';
 
 export default memo(function Reader({ overlayOpen, ...props }) {
-  return props.mode === 'visual' ? <VisionReader {...props} /> : <StandardReader {...props} overlayOpen={overlayOpen} />;
+  return props.translatedOnly || props.mode === 'visual' ? <VisionReader {...props} /> : <StandardReader {...props} overlayOpen={overlayOpen} />;
 });
 
 function StandardReader({ document, sidebarCollapsed, onToggleSidebar, onOpenTasks, overlayOpen, onModeChange = () => {} }) {

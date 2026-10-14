@@ -1,6 +1,6 @@
 {
   "name": "paperlens",
-  "version": "0.2.2",
+  "version": "0.3.0",
   "private": true,
   "type": "module",
   "scripts": {
@@ -15,7 +15,8 @@
     "android:sync": "npm run build && cap sync android",
     "android:open": "cap open android",
     "mac:dev": "tauri dev",
-    "mac:build": "tauri build --bundles dmg"
+    "mac:build": "tauri build --bundles dmg",
+    "android:build": "npm run android:sync && cd android && ./gradlew assembleDebug"
   },
   "dependencies": {
     "@capacitor/android": "^7.4.5",

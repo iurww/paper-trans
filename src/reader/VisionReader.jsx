@@ -26,8 +26,9 @@ const VisualParagraph = memo(function VisualParagraph({ paragraph, index, alignm
   </article>;
 });
 
-export default memo(function VisionReader({ document, settings, sidebarCollapsed, onToggleSidebar, onOpenTasks, onModeChange }) {
-  const mobile = useMediaQuery('(max-width: 760px)');
+export default memo(function VisionReader({ document, settings, sidebarCollapsed, onToggleSidebar, onOpenTasks, onModeChange, translatedOnly = false }) {
+  const narrow = useMediaQuery('(max-width: 760px)');
+  const mobile = translatedOnly || narrow;
   const [pages, setPages] = useState([]);
   const [pageError, setPageError] = useState('');
   const [sidePages, setSidePages] = useState({ original: 1, translated: 1 });
@@ -104,9 +105,9 @@ export default memo(function VisionReader({ document, settings, sidebarCollapsed
         onClick={mobile ? onOpenTasks : onToggleSidebar}>
         {mobile ? <FileText size={18} /> : sidebarCollapsed ? <PanelLeftOpen size={18} /> : <PanelLeftClose size={18} />}
       </ActionIcon>
-      <SegmentedControl className="reader-mode-switch" size="xs" color="teal" value="visual" onChange={onModeChange}
-        data={[{ label: '常规', value: 'standard' }, { label: '纯视觉识别', value: 'visual' }]} />
-      <div className="page-count" aria-label="两侧页数"><span>左 {sidePages.original} <em>/ {pages.length || '…'}</em></span><span>右 {sidePages.translated} <em>/ {pages.length || '…'}</em></span></div>
+      {!translatedOnly && <SegmentedControl className="reader-mode-switch" size="xs" color="teal" value="visual" onChange={onModeChange}
+        data={[{ label: '常规', value: 'standard' }, { label: '纯视觉识别', value: 'visual' }]} />}
+      {!translatedOnly && <div className="page-count" aria-label="两侧页数"><span>左 {sidePages.original} <em>/ {pages.length || '…'}</em></span><span>右 {sidePages.translated} <em>/ {pages.length || '…'}</em></span></div>}
       <div className="zoom-controls">
         {(document.visualPages || []).some(Boolean) && <ActionIcon variant="subtle" color="teal" aria-label="下载对照 JSON" title="下载对照 JSON" onClick={() => downloadJson()}><Download size={18} /></ActionIcon>}
         {(alignedPages.some(Boolean) || inputs.some(input => !input.length)) && <ActionIcon variant="subtle" color="teal" aria-label="下载句级对照 JSON" title="下载句级对照 JSON" onClick={() => downloadJson(true)}><FileJson size={18} /></ActionIcon>}
@@ -120,11 +121,11 @@ export default memo(function VisionReader({ document, settings, sidebarCollapsed
       {pageError && <Alert color="red">PDF 无法打开：{pageError}</Alert>}
       {exportError && <Alert color="red" withCloseButton onClose={() => setExportError('')}>{exportError}</Alert>}
       {document.visualStatus === 'error' && <Alert color="red" className="vision-error">{document.visualError}<Button ml="sm" size="compact-sm" variant="white" onClick={() => runVisualTranslation(document.id, settings?.key, { retry: true })}>重试未完成页</Button></Alert>}
-      <div className="mobile-view-switch"><SegmentedControl value={mobileView} onChange={setMobileView}
-        data={[{ label: 'PDF 原件', value: 'original' }, { label: '逐段对照', value: 'translated' }]} fullWidth size="xs" color="teal" /></div>
-      <div className={`vision-spread mobile-${mobileView}`}>
-        <PdfPane version="original" blob={originalBlob} pages={pages} scale={scale} scrollRef={originalRef}
-          onScroll={updatePage} onSentenceOpen={ignoreSentence} onSentenceHover={ignoreSentence} mobile={mobile} />
+      {!translatedOnly && <div className="mobile-view-switch"><SegmentedControl value={mobileView} onChange={setMobileView}
+        data={[{ label: 'PDF 原件', value: 'original' }, { label: '逐段对照', value: 'translated' }]} fullWidth size="xs" color="teal" /></div>}
+      <div className={`vision-spread mobile-${mobileView} ${translatedOnly ? 'translated-only' : ''}`}>
+        {!translatedOnly && <PdfPane version="original" blob={originalBlob} pages={pages} scale={scale} scrollRef={originalRef}
+          onScroll={updatePage} onSentenceOpen={ignoreSentence} onSentenceHover={ignoreSentence} mobile={mobile} />}
         <div ref={translatedRef} className="visual-scroll" style={readingStyle} onClick={openLatex} onKeyDown={openLatex} onScroll={event => updatePage('translated', event.currentTarget)}>
           <div className="visual-progress">已完成 {(document.visualPages || []).filter(Boolean).length} / {pages.length || '…'} 页
             {document.visualActivePage && document.visualPages?.[document.visualActivePage - 1] ? ` · 正在重新识别第 ${document.visualActivePage} 页` : ''}

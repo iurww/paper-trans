@@ -56,3 +56,5 @@
 .latex-source-row button[data-status=error]{background:#fff0ee;color:#b44736;border-color:#e3b1a9}
 .latex-source-row button:disabled{opacity:.6;cursor:wait}
 @media(max-width:760px){.reader-toolbar{padding:0 10px}.reader-mode-switch{margin-left:4px}.reader-mode-switch .mantine-SegmentedControl-label{padding:5px 7px;font-size:11px}.page-count{display:none}.reader-workspace{padding:5px}.mobile-view-switch{display:block;margin-bottom:5px}.reader-spread,.vision-spread{display:block}.pdf-pane{height:100%}.reader-spread.mobile-original .translated,.reader-spread.mobile-translated .original,.vision-spread.mobile-original .visual-scroll,.vision-spread.mobile-translated .original{display:none}.sync-controls{display:none}.pdf-scroll{padding:5px}.visual-scroll{height:100%}.visual-page{padding:12px 11px}}
+
+.vision-spread.translated-only{display:grid;grid-template-columns:minmax(0,1fr)}
