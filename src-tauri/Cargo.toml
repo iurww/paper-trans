@@ -1,6 +1,6 @@
 [package]
 name = "paperlens"
-version = "0.3.1"
+version = "0.3.2"
 description = "PaperLens desktop PDF translation workbench"
 edition = "2024"
 rust-version = "1.90"
@@ -22,6 +22,8 @@ tauri-plugin-log = "2"
 tauri-plugin-dialog = "2"
 tauri-plugin-fs = "2"
 tauri-plugin-http = "2"
+tauri-plugin-updater = "2.13.3"
+tauri-plugin-process = "2"
 
 [profile.release]
 strip = true

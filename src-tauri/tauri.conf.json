@@ -1,7 +1,7 @@
 {
   "$schema": "../node_modules/@tauri-apps/cli/config.schema.json",
   "productName": "PaperLens",
-  "version": "0.3.1",
+  "version": "0.3.2",
   "identifier": "io.paperlens.desktop",
   "build": {
     "frontendDist": "../dist",
@@ -38,11 +38,19 @@
       "icons/32x32.png",
       "icons/128x128.png",
       "icons/128x128@2x.png"
-    ]
+    ],
+    "createUpdaterArtifacts": true
   },
   "plugins": {
     "fs": {
       "requireLiteralLeadingDot": false
+    },
+    "updater": {
+      "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IEM0NDJGOUY0MkU0N0NBOTAKUldTUXlrY3U5UGxDeExhVThIM1pzMExVc2F2U2Z4TFN1QytkRzVxMmUyZkd4cElzeUlvUGg3ejUK",
+      "endpoints": [
+        "https://github.com/iurww/paper-trans/releases/latest/download/latest.json"
+      ],
+      "requireSignedVersion": true
     }
   }
 }

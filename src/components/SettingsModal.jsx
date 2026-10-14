@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
-import { Button, Modal, PasswordInput, Stack, Text, TextInput } from '@mantine/core';
+import { Alert, Button, Divider, Modal, PasswordInput, Stack, Text, TextInput } from '@mantine/core';
 
-export default function SettingsModal({ opened, onClose, settings, onSave, lockScroll = true }) {
+export default function SettingsModal({ opened, onClose, settings, onSave, lockScroll = true, updates }) {
   const [draft, setDraft] = useState(settings);
   useEffect(() => { if (opened) setDraft(settings); }, [opened, settings]);
   const update = (field, value) => setDraft(current => ({ ...current, [field]: value }));
@@ -20,5 +20,12 @@ export default function SettingsModal({ opened, onClose, settings, onSave, lockS
         <Button type="submit" color="teal">保存</Button>
       </Stack>
     </form>
+    {updates?.enabled && <Stack gap="sm" mt="lg">
+      <Divider label="软件更新" />
+      <Button variant="light" color="teal" loading={updates.checking} disabled={updates.installing || updates.installed}
+        onClick={() => updates.checkUpdates(true)}>获取更新</Button>
+      {updates.message && <Text size="sm" c="dimmed">{updates.message}</Text>}
+      {updates.error && !updates.update && <Alert color="red">{updates.error}</Alert>}
+    </Stack>}
   </Modal>;
 }

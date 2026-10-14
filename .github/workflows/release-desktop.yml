@@ -50,16 +50,31 @@ jobs:
         with:
           workspaces: src-tauri -> target
       - name: Build desktop packages
+        env:
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
         run: npm run ${{ matrix.script }} -- --ci -- --locked
+      - name: Sign Debian updater package
+        if: runner.os == 'Linux'
+        env:
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
+        run: |
+          VERSION=$(node -p 'require("./package.json").version')
+          npx tauri signer sign --app-version "$VERSION" src-tauri/target/release/bundle/deb/*.deb
       - name: Collect packages
         shell: bash
         run: |
           mkdir release-assets
           if [[ "$RUNNER_OS" == Linux ]]; then
             cp src-tauri/target/release/bundle/deb/*.deb release-assets/
+            cp src-tauri/target/release/bundle/deb/*.deb.sig release-assets/
             cp src-tauri/target/release/bundle/appimage/*.AppImage release-assets/
+            cp src-tauri/target/release/bundle/appimage/*.AppImage.sig release-assets/
           else
             cp src-tauri/target/release/bundle/dmg/*.dmg release-assets/
+            cp src-tauri/target/release/bundle/macos/*.app.tar.gz release-assets/
+            cp src-tauri/target/release/bundle/macos/*.app.tar.gz.sig release-assets/
           fi
       - uses: actions/upload-artifact@v4
         with:
@@ -110,6 +125,10 @@ jobs:
     permissions:
       contents: write
     steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
       - uses: actions/download-artifact@v4
         with:
           pattern: PaperLens-${{ github.ref_name }}-*
@@ -125,7 +144,6 @@ jobs:
           dmgs=(*.dmg)
           apks=(*.apk)
           [[ ${#debs[@]} == 1 && ${#appimages[@]} == 1 && ${#dmgs[@]} == 1 && ${#apks[@]} == 1 ]]
-          sha256sum *.deb *.AppImage *.dmg *.apk > SHA256SUMS
       - name: Publish GitHub Release
         env:
           GH_TOKEN: ${{ github.token }}
@@ -136,5 +154,8 @@ jobs:
             gh release create "$RELEASE_TAG" --verify-tag \
               --title "PaperLens $RELEASE_TAG" --generate-notes --draft
           fi
+          gh release view "$RELEASE_TAG" --json tagName,name,body,publishedAt > release-metadata.json
+          node tools/updater-manifest.mjs release-assets "$GH_REPO" release-metadata.json
+          (cd release-assets && sha256sum *.deb *.AppImage *.dmg *.apk *.app.tar.gz *.sig latest.json > SHA256SUMS)
           gh release upload "$RELEASE_TAG" release-assets/* --clobber
           gh release edit "$RELEASE_TAG" --draft=false

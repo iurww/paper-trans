@@ -78,6 +78,23 @@ npm run mac:build
 
 DMG 位于 `src-tauri/target/release/bundle/dmg/`。平台配置 `src-tauri/tauri.macos.conf.json` 自动合并到共用配置，版本仍统一维护。CI 在 macOS 15 的 Apple Silicon runner 上原生构建。当前使用 ad-hoc 签名，尚未配置 Apple Developer ID 签名和公证，下载后的应用可能被 Gatekeeper 拦截；正式分发签名配置见 [Tauri macOS 签名文档](https://v2.tauri.app/distribute/sign/macos/)。
 
+## 桌面自动更新
+
+macOS 和 Linux 桌面版每次启动自动检查一次 GitHub 最新 Release；设置中的「获取更新」可手动检查。发现新版后显示版本号、发布时间和发布说明，点击「取消」保留当前版本，点击「更新」下载、验证签名、安装并自动重启。无更新或网络不可用不会在启动时打断阅读，手动检查会显示结果或错误。网页和 Android 暂不接入此更新方式。
+
+支持 macOS 应用、Linux AppImage 和 deb。deb 通过更新插件调用系统包管理器，安装时可能需要管理员授权；AppImage 需要其所在目录可写。开发启动可以检查版本，但不会替换开发程序。更新完成前不能关闭更新窗口；失败可重试，安装成功但重启失败时仅重试重启，不重复安装。论文数据仍保存在 `~/Documents/PaperLens/`。
+
+更新端点为 `https://github.com/iurww/paper-trans/releases/latest/download/latest.json`。CI 会上传签名更新包、签名文件和清单；清单内容来自同一个 Release 的版本及说明。新发布的 macOS 使用 `.app.tar.gz`，Linux 按安装类型选择 AppImage 或 deb。签名绑定应用版本，客户端拒绝无效签名和版本不一致的更新包。
+
+本机更新签名私钥在 `.secrets/updater.key`，目录已加入 `.gitignore`；请安全备份并保留同一密钥供后续发布使用。仓库 Actions Secret `TAURI_SIGNING_PRIVATE_KEY` 保存该文件内容；当前生成的私钥使用空密码，无需设置 `TAURI_SIGNING_PRIVATE_KEY_PASSWORD`。公钥已写入 Tauri 配置。打包时必须提供签名密钥，例如：
+
+```bash
+TAURI_SIGNING_PRIVATE_KEY_PATH="$PWD/.secrets/updater.key" npm run mac:build
+# Linux 使用相同的环境变量运行 npm run linux:build
+```
+
+首次启用需手动安装包含此功能的版本，后续发布更高版本即可在应用内更新。不要重新生成或替换已发布版本使用的签名密钥，否则已安装客户端将无法验证后续更新。
+
 ## GitHub CI/CD 与版本发布
 
 普通分支推送和 Pull Request 会运行测试及前端构建。推送 `v` 开头的标签后，`.github/workflows/release-desktop.yml` 会并行测试和构建 Linux x86_64 的 `.deb`、AppImage，以及 macOS arm64 的 DMG。所有构建成功后统一发布到该标签对应的 GitHub Release，附带 `SHA256SUMS` 校验文件。构建失败时不会创建 Release；上传完整后才公开新建的 Release。安装包同时保留为 Actions Artifact，保留 14 天。

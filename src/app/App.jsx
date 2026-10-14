@@ -12,9 +12,12 @@ import SettingsModal from '../components/SettingsModal.jsx';
 import Welcome from '../components/Welcome.jsx';
 import TaskProgress from '../components/TaskProgress.jsx';
 import Reader from '../reader/Reader.jsx';
+import { useAppUpdates } from './useAppUpdates.js';
+import UpdateModal from '../components/UpdateModal.jsx';
 
 export default function App() {
   const android = isAndroid();
+  const updates = useAppUpdates();
   const [settings, setSettings] = useState(loadSettings);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [drawerOpen, setDrawerOpen] = useState(false);
@@ -80,7 +83,7 @@ export default function App() {
     <TaskSidebar {...sidebarProps} />
     <main className="app-main">
       {reading ? <Reader translatedOnly={android} key={selected.id} document={selected} settings={settings} mode={mode} onModeChange={changeMode} sidebarCollapsed={sidebarCollapsed}
-        onToggleSidebar={toggleSidebar} onOpenTasks={openTasks} overlayOpen={settingsOpen || drawerOpen || uploadOpen || Boolean(library.duplicate)} /> : <>
+        onToggleSidebar={toggleSidebar} onOpenTasks={openTasks} overlayOpen={settingsOpen || drawerOpen || uploadOpen || Boolean(library.duplicate) || Boolean(updates.update)} /> : <>
         <header className="regular-toolbar">
           <ActionIcon className="desktop-sidebar-toggle" variant="subtle" color="teal" aria-label={sidebarCollapsed ? '展开任务列表' : '折叠任务列表'} onClick={toggleSidebar}>
             {sidebarCollapsed ? <PanelLeftOpen size={18} /> : <PanelLeftClose size={18} />}
@@ -119,7 +122,8 @@ export default function App() {
       <Button fullWidth color="teal" mt="lg" onClick={async () => { const nextMode = library.duplicate.mode; if (await library.overwriteDuplicate()) setMode(nextMode); }}>覆盖并重新翻译</Button>
       <Button fullWidth variant="default" mt="sm" onClick={library.cancelDuplicate}>取消</Button>
     </Modal>
-    <SettingsModal lockScroll={!reading} opened={settingsOpen} onClose={() => setSettingsOpen(false)} settings={settings} onSave={handleSettingsSave} />
+    <SettingsModal lockScroll={!reading} opened={settingsOpen} onClose={() => setSettingsOpen(false)} settings={settings} onSave={handleSettingsSave} updates={updates} />
+    <UpdateModal lockScroll={!reading} updates={updates} />
     {notice && <div className="notice"><Alert color="red" variant="filled">{notice}</Alert></div>}
   </div>;
 }

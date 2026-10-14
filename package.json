@@ -1,6 +1,6 @@
 {
   "name": "paperlens",
-  "version": "0.3.1",
+  "version": "0.3.2",
   "private": true,
   "type": "module",
   "scripts": {
@@ -28,6 +28,8 @@
     "@tauri-apps/plugin-dialog": "^2.8.2",
     "@tauri-apps/plugin-fs": "^2.7.0",
     "@tauri-apps/plugin-http": "^2.8.2",
+    "@tauri-apps/plugin-process": "^2.4.0",
+    "@tauri-apps/plugin-updater": "^2.13.3",
     "core-js": "^3.50.0",
     "katex": "^0.19.0",
     "lucide-react": "^1.53.0",

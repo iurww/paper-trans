@@ -108,6 +108,7 @@ export function createFilesystemStorage(fs, paths, root) {
     if (location) await fs.remove(location.dir, { recursive: true });
   }
   return {
+    flush: () => serial(async () => {}),
     getDocument: id => serial(() => get(id)),
     listDocuments: () => serial(async () => Promise.all((await locations()).sort((a, b) => b.record.createdAt - a.record.createdAt).map(hydrate))),
     putDocument: record => serial(() => save(record)),

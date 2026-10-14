@@ -19,3 +19,4 @@ export const deleteDocument = async id => (await backend()).deleteDocument(id);
 export const listFolders = async () => (await backend()).listFolders();
 export const putFolder = async folder => (await backend()).putFolder(folder);
 export const replaceDocument = async (id, record) => (await backend()).replaceDocument(id, record);
+export const flushStorage = async () => (await backend()).flush?.();
