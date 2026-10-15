@@ -45,25 +45,6 @@ test('filesystem roundtrip, concurrent updates, move, restart, replace and delet
   await assert.rejects(storage.putFolder({ id: 'bad', name: '../escape' }), /无效/);
 });
 
-test('migration is retryable, keeps existing translations and does not resurrect deleted records', async t => {
-  const { storage } = await fixture(t);
-  let fail = true;
-  const legacy = {
-    listFolders: async () => [{ id: 'default', name: 'default' }],
-    listDocuments: async () => { if (fail) throw new Error('read failed'); return [paper('old')]; },
-  };
-  await assert.rejects(storage.migrate(legacy), /read failed/);
-  fail = false;
-  await storage.migrate(legacy);
-  assert.equal(await (await storage.getDocument('old')).original.text(), 'source');
-  await storage.updateDocument('old', record => ({ ...record, progress: 100 }));
-  await storage.migrate(legacy);
-  assert.equal((await storage.getDocument('old')).progress, 100);
-  await storage.deleteDocument('old');
-  await storage.migrate(legacy);
-  assert.equal(await storage.getDocument('old'), undefined);
-});
-
 test('an interrupted JSON write preserves the committed translation snapshot', async t => {
   const { root, storage, fs } = await fixture(t);
   await storage.putDocument(paper('stable'));
@@ -78,16 +59,4 @@ test('an interrupted JSON write preserves the committed translation snapshot', a
   assert.equal((await restarted.getDocument('stable')).progress, undefined);
   await restarted.updateDocument('stable', record => ({ ...record, progress: 100 }));
   assert.equal((await restarted.getDocument('stable')).progress, 100);
-});
-
-test('development and installed origins migrate independently into a shared library', async t => {
-  const { storage } = await fixture(t);
-  const previous = globalThis.location;
-  t.after(() => { if (previous === undefined) delete globalThis.location; else globalThis.location = previous; });
-  const legacy = id => ({ listFolders: async () => [{ id: 'default', name: 'default' }], listDocuments: async () => [paper(id)] });
-  globalThis.location = { origin: 'http://localhost:1420' };
-  await storage.migrate(legacy('dev'));
-  globalThis.location = { origin: 'tauri://localhost' };
-  await storage.migrate(legacy('installed'));
-  assert.deepEqual((await storage.listDocuments()).map(item => item.id).sort(), ['dev', 'installed']);
 });

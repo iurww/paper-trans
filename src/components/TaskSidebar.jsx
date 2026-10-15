@@ -1,13 +1,17 @@
 import { memo, useState } from 'react';
-import { ActionIcon, Button, Popover, Modal, Progress, Select, Text, TextInput } from '@mantine/core';
+import { ActionIcon, Button, Popover, Modal, Select, Text, TextInput } from '@mantine/core';
 import { Download, FileText, Plus, RotateCcw, Settings, BookOpen, Folder, FolderPlus, Trash2, Info, ArrowLeft, ChevronRight } from 'lucide-react';
 import { label, status, tokenKilos } from '../app/format.js';
 
 const TaskItem = memo(function TaskItem({ document, selected, onSelect, folders, onMove, onDelete, removing = false, mobile = false }) {
   const [detailsOpen, setDetailsOpen] = useState(false);
   const visual = document.mode === 'visual';
-  const donePages = (document.visualPages || []).filter(Boolean).length;
-  const progress = visual ? Math.round(100 * donePages / (document.visualPageCount || 1)) : document.progress;
+  const totalPages = (visual ? document.visualPageCount : document.pages?.length) || document.metadata?.pageCount || 0;
+  const donePages = visual ? (document.visualPages || []).filter(Boolean).length
+    : document.status === 'done' ? totalPages : (document.pages || []).filter(page => {
+      const sentences = page.blocks?.flatMap(block => block.sentences) || page.lines?.filter(line => line.translate);
+      return sentences && sentences.every(sentence => Boolean(sentence.translation));
+    }).length;
   const tokens = visual ? document.visualTokens : document.tokens;
   const metadata = document.metadata || {};
   const paragraphs = document.visualPages?.[0]?.paragraphs || [];
@@ -31,10 +35,9 @@ const TaskItem = memo(function TaskItem({ document, selected, onSelect, folders,
   return <div className={`task-row ${removing ? 'is-removing' : ''}`} inert={removing || undefined}><div className="task-row-content"><button type="button" className={`task-item ${selected ? 'selected' : ''}`} onClick={() => onSelect(document.id)}>
     <span className="task-icon"><FileText size={17} /></span>
     <span className="task-copy">
-      <strong title={document.filename}>{label(document)}</strong>
-      <small>{status(document)} · {progress}%</small>
+      <strong title={title}>{title}</strong>
+      <small>已翻译 {donePages}/{totalPages || '…'} 页</small>
       <small>输入 {tokenKilos(tokens?.prompt)} 输出 {tokenKilos(tokens?.completion)}</small>
-      {(visual ? document.visualStatus === 'working' : !['done', 'error'].includes(document.status)) && <Progress value={progress} size={3} radius="xl" color="teal" mt={5} />}
     </span>
     {(visual ? document.visualStatus === 'done' : document.status === 'done') && <span className="task-complete" />}
   </button>

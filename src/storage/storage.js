@@ -1,13 +1,10 @@
 import { isDesktop } from '../platform/desktop.js';
-import * as legacy from './indexeddb.js';
 let desktop;
 async function backend() {
-  if (!isDesktop()) return legacy;
+  if (!isDesktop()) return import('./indexeddb.js');
   desktop ||= import('./filesystem.js').then(async ({ createFilesystemStorage }) => {
     const [fs, path] = await Promise.all([import('@tauri-apps/plugin-fs'), import('@tauri-apps/api/path')]);
-    const storage = createFilesystemStorage(fs, path, await path.join(await path.homeDir(), 'Documents', 'PaperLens'));
-    await storage.migrate(legacy);
-    return storage;
+    return createFilesystemStorage(fs, path, await path.join(await path.homeDir(), 'Documents', 'PaperLens'));
   }).catch(error => { desktop = undefined; throw error; });
   return desktop;
 }

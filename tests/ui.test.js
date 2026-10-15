@@ -106,7 +106,7 @@ test('reader and task sidebar render the saved PDF record without changing its f
     assert.match(sidebar, /下载译文 PDF/);
     assert.match(sidebar, /按句重译/);
     const sidebarText = sidebar.replaceAll('<!-- -->', '');
-    assert.match(sidebarText, /100%<\/small><small>输入 12k 输出 8k/);
+    assert.match(sidebarText, /已翻译 1\/1 页<\/small><small>输入 12k 输出 8k/);
     assert.equal((sidebarText.match(/输入 /g) || []).length, 1);
   } finally { await vite.close(); }
 });

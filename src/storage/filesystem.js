@@ -124,22 +124,5 @@ export function createFilesystemStorage(fs, paths, root) {
     }),
     deleteDocument: id => serial(() => remove(id)),
     replaceDocument: (id, record) => serial(async () => { await save(record); if (id !== record.id) await remove(id); }),
-    migrate: legacy => serial(async () => {
-      const marker = await join('.indexeddb-migrated.json');
-      const origin = globalThis.location?.origin || 'unknown';
-      const migrated = await fs.exists(marker) ? await readJson(marker) : [];
-      if (migrated.includes(origin)) return;
-      const existingFolders = await folders();
-      for (const folder of await legacy.listFolders()) {
-        if (existingFolders.some(item => item.id === folder.id)) continue;
-        let name = folder.name;
-        if (existingFolders.some(item => item.name.toLowerCase() === name.toLowerCase())) name = `${name}--${folder.id}`;
-        await saveFolder({ ...folder, name });
-        existingFolders.push({ ...folder, name });
-      }
-      const ids = new Set((await locations()).map(item => item.record.id));
-      for (const record of await legacy.listDocuments()) if (!ids.has(record.id)) await save(record);
-      await writeJson(marker, [...migrated, origin]);
-    }),
   };
 }

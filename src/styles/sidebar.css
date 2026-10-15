@@ -9,11 +9,11 @@
 .sidebar-heading{padding:0 14px;color:#65756e;font-size:11px;font-weight:700;letter-spacing:1px;display:flex;justify-content:space-between;margin-bottom:10px}
 .sidebar-heading span{font-size:11px;background:#e4eae5;padding:2px 6px;border-radius:4px}
 .task-list{overflow-y:auto;min-height:0;flex:1}
-.task-item{width:100%;border:0;background:transparent;display:flex;text-align:left;align-items:center;gap:10px;padding:10px;border-radius:9px;color:#33443c;margin-bottom:3px}
+.task-item{width:100%;border:0;background:transparent;display:flex;text-align:left;align-items:center;gap:8px;padding:6px 10px;border-radius:0;color:#33443c;margin-bottom:0}
 .task-item:hover{background:#e8eee9}.task-item.selected{background:#dfece5;color:#12624f}
 .task-icon{width:31px;height:33px;flex:none;border-radius:6px;background:#fff;display:grid;place-items:center;color:#599181}
-.task-copy{min-width:0;flex:1}.task-copy strong{display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:12px;font-weight:600}
-.task-copy small{display:block;font-size:10px;color:#8b9a91;margin-top:4px}
+.task-copy{min-width:0;flex:1;line-height:1.25}.task-copy strong{display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:12px;font-weight:600}
+.task-copy small{display:block;font-size:10px;color:#8b9a91;margin-top:2px}
 .task-complete{width:6px;height:6px;flex:none;border-radius:50%;background:#4cb69c}
 .sidebar-actions{border-top:1px solid #dfe6df;padding:12px 6px 0;display:flex;flex-direction:column;align-items:stretch;gap:1px}
 .sidebar-actions .mantine-Button-root{justify-content:flex-start;height:32px;padding:0 4px;font-size:12px}
@@ -23,7 +23,8 @@
 @media(max-width:760px){.task-sidebar:not(.task-sidebar-mobile){display:none}.task-sidebar-mobile{padding:12px 14px 18px}.task-sidebar-mobile .brand{display:none}}
 .folder-item{display:flex;align-items:center;gap:8px;width:100%;padding:8px 10px;border:0;border-radius:7px;background:transparent;color:#65756e;text-align:left}
 .folder-item.active{background:#dfece5;color:#12624f}.folder-item:hover{background:#e8eee9}.folder-item span{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.folder-item small{font-size:11px}
-.task-row{display:grid;grid-template-rows:1fr;opacity:1;transform:translateX(0);transition:grid-template-rows 260ms ease,opacity 220ms ease,transform 260ms ease}.task-row-content{position:relative;min-height:0;overflow:hidden}.task-row.is-removing{grid-template-rows:0fr;opacity:0;transform:translateX(-12px);pointer-events:none}.task-row .task-item{padding-right:62px}.task-item-actions{position:absolute;right:3px;top:6px;display:flex;gap:1px}.delete-document{opacity:0}.task-row:hover .delete-document,.task-row:focus-within .delete-document{opacity:1}
+.task-row+.task-row{border-top:1px solid #dfe6df}
+.task-row{display:grid;grid-template-rows:1fr;opacity:1;transform:translateX(0);transition:grid-template-rows 260ms ease,opacity 220ms ease,transform 260ms ease}.task-row-content{position:relative;min-height:0;overflow:hidden}.task-row.is-removing{grid-template-rows:0fr;opacity:0;transform:translateX(-12px);pointer-events:none}.task-row .task-item{padding-right:62px}.task-item-actions{position:absolute;right:3px;top:3px;display:flex;gap:1px}.delete-document{opacity:0}.task-row:hover .delete-document,.task-row:focus-within .delete-document{opacity:1}
 .sidebar-heading{align-items:center;gap:6px}.sidebar-heading strong{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:12px;letter-spacing:0}
 .sidebar-resize-handle{position:absolute;right:0;top:0;bottom:0;width:6px;cursor:col-resize;touch-action:none;z-index:5}.sidebar-resize-handle:hover,.sidebar-resize-handle:focus-visible{background:#1b796a50;outline:none}.app-layout.sidebar-collapsed .sidebar-resize-handle{display:none}
 .document-metadata{font-size:12px}.document-metadata>strong{display:block;overflow-wrap:anywhere;line-height:1.5}.document-metadata dl{max-height:50vh;overflow-y:auto;margin:10px 0}.document-metadata dl>div{display:flex;gap:10px;padding:4px 0}.document-metadata dt{width:70px;flex:none;color:#83928d}.document-metadata dd{margin:0;overflow-wrap:anywhere;min-width:0}

@@ -36,6 +36,17 @@ test('obsolete PDF render work is cancelled and abort listeners are removed', as
     await renderPage(pdf, 1, canvas, 600, { signal: completed.signal });
     completed.abort();
     assert.equal(cancellations, 1);
+    globalThis.window.devicePixelRatio = 2;
+    await renderPage(pdf, 1, canvas, 1200);
+    assert.equal(canvas.width, 2400);
+    assert.equal(canvas.height, 3200);
+    assert.equal(canvas.style.width, '100%');
+    assert.equal(canvas.style.height, '100%');
+    await renderPage(pdf, 1, canvas, 450);
+    assert.equal(canvas.width, 900);
+    assert.equal(canvas.height, 1200);
+    assert.equal(canvas.style.width, '100%');
+    assert.equal(canvas.style.height, '100%');
   } finally {
     if (previousWindow === undefined) delete globalThis.window;
     else globalThis.window = previousWindow;

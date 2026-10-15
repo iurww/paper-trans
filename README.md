@@ -57,7 +57,7 @@ Linux 和 macOS 桌面版（开发启动和正式安装）统一把论文库保�
       translated.pdf     # 常规模式生成译文 PDF 后保存
 ```
 
-移动论文会移动其目录，删除论文会删除其目录和文件。JSON 使用临时文件加原子重命名保存。启动时自动迁移当前 WebView 来源下的旧 IndexedDB 论文库，保留旧数据库副本；开发版和正式版分别迁移，之后共用这个文件系统论文库。请避免同时运行两个桌面实例编辑同一论文库。API 设置、密钥和界面偏好仍保存在各自 WebView 的 localStorage，网页与 Android 的论文库仍使用 IndexedDB。退出应用会停止正在进行的请求，重新打开论文后按已保存进度恢复。备份论文库时先退出软件，再复制整个 `~/Documents/PaperLens/`。
+移动论文会移动其目录，删除论文会删除其目录和文件。JSON 使用临时文件加原子重命名保存。桌面版启动后直接读取 `~/Documents/PaperLens/` 中的论文库，不访问或迁移旧 IndexedDB；开发版和正式版共用这个文件系统论文库。请避免同时运行两个桌面实例编辑同一论文库。API 设置、密钥和界面偏好仍保存在各自 WebView 的 localStorage，网页与 Android 的论文库仍使用 IndexedDB。退出应用会停止正在进行的请求，重新打开论文后按已保存进度恢复。备份论文库时先退出软件，再复制整个 `~/Documents/PaperLens/`。
 
 本机构建用于当前 Linux 环境试用。Manjaro 上生成的安装包尚不保证能在旧版 Ubuntu/Debian 上运行；正式跨发行版发布应在最低支持的发行版上构建，并验证 WebKitGTK、glibc、X11/Wayland 和 PDF.js 的兼容性。
 
@@ -134,7 +134,7 @@ git push origin v0.2.0
 
 首次发布前，需要将 Tauri 源码、锁文件和 `.github/workflows/` 一起提交到被打标签的版本。版本已提交时，也可直接打标签并推送；CI 会自动设置安装包版本。发布后使用新标签发布下一版，不移动已有标签。失败后可在 GitHub Actions 中重新运行；重复运行会覆盖同标签下的同名安装包。
 
-工作流使用 GitHub 自带的 `GITHUB_TOKEN` 创建 Release，无需配置模型 API Key 或额外发布令牌。仓库需允许 GitHub Actions 运行，组织策略也需允许工作流的 `contents: write` 权限。这里只发布安装包，尚未实现应用内自动更新。
+工作流使用 GitHub 自带的 `GITHUB_TOKEN` 创建 Release，无需配置模型 API Key 或额外发布令牌。仓库需允许 GitHub Actions 运行，组织策略也需允许工作流的 `contents: write` 权限。工作流同时发布安装包和桌面自动更新所需的签名包及清单。
 
 ## Android
 

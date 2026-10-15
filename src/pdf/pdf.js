@@ -105,8 +105,10 @@ export async function renderPage(pdf, number, canvas, cssWidth, { signal } = {})
   const viewport = page.getViewport({ scale: cssScale * pixelRatio });
   canvas.width = Math.round(viewport.width);
   canvas.height = Math.round(viewport.height);
-  canvas.style.width = `${Math.round(base.width * cssScale)}px`;
-  canvas.style.height = `${Math.round(base.height * cssScale)}px`;
+  // Layout follows the page wrapper immediately, even while an offscreen
+  // canvas still holds a bitmap rendered at a previous zoom level.
+  canvas.style.width = '100%';
+  canvas.style.height = '100%';
   const task = page.render({ canvasContext: canvas.getContext('2d', { alpha: false }), viewport });
   const cancel = () => task.cancel();
   signal?.addEventListener('abort', cancel, { once: true });
