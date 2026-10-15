@@ -61,7 +61,7 @@ Linux 和 macOS 桌面版（开发启动和正式安装）统一把论文库保�
 
 本机构建用于当前 Linux 环境试用。Manjaro 上生成的安装包尚不保证能在旧版 Ubuntu/Debian 上运行；正式跨发行版发布应在最低支持的发行版上构建，并验证 WebKitGTK、glibc、X11/Wayland 和 PDF.js 的兼容性。
 
-在 NVIDIA + Wayland 环境下，启动时默认设置 `__NV_DISABLE_EXPLICIT_SYNC=1`，规避显式同步相关的协议错误，同时保留 WebKitGTK 的快速渲染路径；已有同名环境变量时不会覆盖，使用 `GDK_BACKEND=x11` 时也不会设置。其他环境保持默认渲染设置。若特定驱动仍出现白屏、GBM 缓冲创建失败或 `Error 71`，可手动用 `WEBKIT_DISABLE_DMABUF_RENDERER=1` 启动作为兼容回退，但这会影响动画和大文档的图形性能。背景与说明见 [Tauri Linux 图形问题文档](https://v2.tauri.app/develop/debug/linux-graphics/)。
+检测到 NVIDIA 驱动时，启动前默认设置 `WEBKIT_FORCE_DMABUF_RENDERER=1`，绕过 Ubuntu/Debian WebKit 包对 NVIDIA 的 DMABUF 禁用补丁，恢复滚动和弹窗的加速渲染；Wayland 下同时默认设置 `__NV_DISABLE_EXPLICIT_SYNC=1` 规避显式同步相关的协议错误。已有同名环境变量不会覆盖；X11 同时默认设置 `WEBKIT_DMABUF_RENDERER_FORCE_SHM=1`，使用共享内存传输加速渲染缓冲，避开 NVIDIA 的 GBM 缓冲创建失败；不设置 Wayland 显式同步选项。其他显卡保持默认设置。若特定驱动仍出现白屏、GBM 缓冲创建失败或 `Error 71`，可手动用 `WEBKIT_DISABLE_DMABUF_RENDERER=1` 启动作为兼容回退，但这会影响动画和大文档的图形性能。背景与说明见 [Tauri Linux 图形问题文档](https://v2.tauri.app/develop/debug/linux-graphics/)。
 
 ## Arch Linux / Manjaro 安装包
 
@@ -99,6 +99,14 @@ npm run mac:build
 DMG 位于 `src-tauri/target/release/bundle/dmg/`。平台配置 `src-tauri/tauri.macos.conf.json` 自动合并到共用配置，版本仍统一维护。CI 在 macOS 15 的 Apple Silicon runner 上原生构建。当前使用 ad-hoc 签名，尚未配置 Apple Developer ID 签名和公证，下载后的应用可能被 Gatekeeper 拦截；正式分发签名配置见 [Tauri macOS 签名文档](https://v2.tauri.app/distribute/sign/macos/)。
 
 ## 桌面自动更新
+
+### AppImage 构建与性能验证
+
+AppImage 使用 `packaging/linux/Dockerfile.appimage` 定义的 Ubuntu 22.04 工具链，保留原有系统兼容基线。卡顿修复位于应用启动配置：Ubuntu/Debian WebKit 的 `disable-nvidia-dmabuf.patch` 默认禁用 NVIDIA 加速，需要在 WebKit 初始化之前恢复该路径。单纯升级 WebKit 版本不能替代这项修复。
+
+本地运行 `npm run linux:build:appimage:docker` 即可复现 CI 构建，结果位于 `output/docker-appimage/`。提供更新签名密钥时生成签名包，否则生成本机验证用的未签名更新产物；应用内的更新验签设置不会因此关闭。CI 与本地使用同一构建脚本，发布附带 `appimage-runtime.json` 记录实际运行库版本。
+
+`PAPERLENS_PERFORMANCE_SMOKE=1 npm run linux:build:appimage:docker` 可在本地额外测试容器内的最终 AppImage。真实桌面的滚动、按钮弹窗延迟和动画掉帧验证方式见 [性能测试说明](tools/performance/README.md)。性能验收在本地完成，CI 不运行性能门禁，负责使用同一工具链完成打包和发布。
 
 macOS 和 Linux 桌面版每次启动自动检查一次 GitHub 最新 Release；设置中的「获取更新」可手动检查。发现新版后显示版本号、发布时间和发布说明，点击「取消」保留当前版本，点击「更新」下载、验证签名、安装并自动重启。无更新或网络不可用不会在启动时打断阅读，手动检查会显示结果或错误。网页和 Android 暂不接入此更新方式。
 

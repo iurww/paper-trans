@@ -1,6 +1,6 @@
 {
   "name": "paperlens",
-  "version": "0.3.4",
+  "version": "0.3.5",
   "private": true,
   "type": "module",
   "scripts": {
@@ -9,6 +9,8 @@
     "dev:desktop": "vite --host 127.0.0.1 --port 1420 --strictPort",
     "linux:dev": "tauri dev",
     "linux:build": "tauri build --bundles deb,appimage",
+    "linux:build:deb": "tauri build --bundles deb",
+    "linux:build:appimage:docker": "bash tools/build-appimage-docker.sh",
     "release:version": "node tools/release-version.mjs",
     "test": "node --test tests/*.test.js",
     "android:add": "cap add android",

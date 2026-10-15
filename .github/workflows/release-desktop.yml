@@ -19,7 +19,7 @@ jobs:
         include:
           - os: ubuntu-22.04
             platform: linux-x86_64
-            script: linux:build
+            script: linux:build:deb
           - os: macos-15
             platform: macos-arm64
             script: mac:build
@@ -69,8 +69,6 @@ jobs:
           if [[ "$RUNNER_OS" == Linux ]]; then
             cp src-tauri/target/release/bundle/deb/*.deb release-assets/
             cp src-tauri/target/release/bundle/deb/*.deb.sig release-assets/
-            cp src-tauri/target/release/bundle/appimage/*.AppImage release-assets/
-            cp src-tauri/target/release/bundle/appimage/*.AppImage.sig release-assets/
           else
             cp src-tauri/target/release/bundle/dmg/*.dmg release-assets/
             cp src-tauri/target/release/bundle/macos/*.app.tar.gz release-assets/
@@ -79,6 +77,35 @@ jobs:
       - uses: actions/upload-artifact@v4
         with:
           name: PaperLens-${{ github.ref_name }}-${{ matrix.platform }}
+          path: release-assets/*
+          if-no-files-found: error
+          retention-days: 14
+
+  appimage:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@v4
+      - uses: docker/setup-buildx-action@v3
+      - name: Prepare the same toolchain used by local AppImage builds
+        uses: docker/build-push-action@v6
+        with:
+          context: packaging/linux
+          file: packaging/linux/Dockerfile.appimage
+          tags: paperlens-appimage:ubuntu22
+          load: true
+          cache-from: type=gha,scope=appimage-toolchain
+          cache-to: type=gha,mode=max,scope=appimage-toolchain
+      - name: Build signed AppImage in the locally verified toolchain
+        env:
+          PAPERLENS_TOOLCHAIN_READY: '1'
+          RELEASE_TAG: ${{ github.ref_name }}
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
+        run: bash tools/build-appimage-docker.sh "$PWD/release-assets"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: PaperLens-${{ github.ref_name }}-appimage-x86_64
           path: release-assets/*
           if-no-files-found: error
           retention-days: 14
@@ -158,7 +185,7 @@ jobs:
           retention-days: 14
 
   publish:
-    needs: [build, arch]
+    needs: [build, appimage, arch]
     runs-on: ubuntu-22.04
     timeout-minutes: 15
     permissions:
@@ -195,6 +222,6 @@ jobs:
           fi
           gh release view "$RELEASE_TAG" --json tagName,name,body,publishedAt > release-metadata.json
           node tools/updater-manifest.mjs release-assets "$GH_REPO" release-metadata.json
-          (cd release-assets && sha256sum *.deb *.AppImage *.dmg *.pkg.tar.zst *.app.tar.gz *.sig latest.json > SHA256SUMS)
+          (cd release-assets && sha256sum *.deb *.AppImage *.dmg *.pkg.tar.zst *.app.tar.gz *.sig latest.json appimage-runtime.json > SHA256SUMS)
           gh release upload "$RELEASE_TAG" release-assets/* --clobber
           gh release edit "$RELEASE_TAG" --draft=false
